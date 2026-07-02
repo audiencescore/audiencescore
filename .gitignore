@@ -1,0 +1,19 @@
+# Planning and word-processor documents never belong in this repository
+*.docx
+*.doc
+Downloads/
+audiencescore-docs/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Environments and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS noise
+.DS_Store
+Thumbs.db

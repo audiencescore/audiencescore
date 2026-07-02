@@ -1,0 +1,7 @@
+# Default owner for everything in the repository.
+* @dogefield
+
+# Specification changes route to the spec owners.
+/protocol/ @dogefield
+/score-spec/ @dogefield
+/GOVERNANCE.md @dogefield
