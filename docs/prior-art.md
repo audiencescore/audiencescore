@@ -56,7 +56,7 @@ posture a trust system should have.
    versioned, deterministic spec any mirror can recompute to the decimal,
    and confidentiality is confined to admission-time anti-fraud checks
    that are hash-committed on activation, publicly logged on every fire,
-   and revealed on retirement ([GOVERNANCE.md](../GOVERNANCE.md)). Notably,
+   and revealed on retirement ([GOVERNANCE.md](https://github.com/audiencescore/audiencescore/blob/main/GOVERNANCE.md)). Notably,
    both projects agree that fraud-detection criteria can't be fully
    public — the difference is whether that secrecy is allowed to touch
    the score.
@@ -88,7 +88,7 @@ demonstrates zero-knowledge proofs and ring signatures preserving reviewer
 anonymity while keeping feedback verifiable — proving "I hold a valid,
 unused credential for this transaction" without revealing identity or
 purchase history. This is the research base for the privacy layer planned
-in [event-spec §6](../protocol/event-spec.md#6-privacy-posture-forward-looking),
+in [event-spec §6](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md#6-privacy-posture-forward-looking),
 alongside selective disclosure in the W3C Verifiable Credentials family.
 
 ## Summary
