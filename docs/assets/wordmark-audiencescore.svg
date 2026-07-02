@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="audiencescore wordmark">
+  <rect width="1280" height="320" fill="#0E1525"/>
+  <text x="80" y="160" fill="#F5F7FA"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="128" font-weight="700" letter-spacing="-4"
+        dominant-baseline="central">audience<tspan fill="#3BC97A">score</tspan></text>
+  <rect x="82" y="212" width="560" height="8" rx="4" fill="#3BC97A" opacity="0.5"/>
+</svg>

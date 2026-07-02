@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AudienceScore avatar">
+  <rect width="512" height="512" rx="96" fill="#0E1525"/>
+  <text x="256" y="256" fill="#F5F7FA"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="248" font-weight="700" letter-spacing="-6"
+        text-anchor="middle" dominant-baseline="central">AS</text>
+  <rect x="140" y="360" width="232" height="10" rx="5" fill="#3BC97A"/>
+</svg>
