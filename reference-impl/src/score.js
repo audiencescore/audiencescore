@@ -8,7 +8,7 @@
 const { canonicalize, sha256Hex, signPayload, publicKeyToString } = require('./crypto');
 const { PROOF_TIERS } = require('./receipts');
 
-const SPEC_VERSION = 'audience-score/score-spec@0.1';
+const SPEC_VERSION = 'audiencescore/score-spec@0.1';
 
 // Spec v0.1 parameters (normative values live in the spec document).
 const Z = 1.96; // 95% confidence

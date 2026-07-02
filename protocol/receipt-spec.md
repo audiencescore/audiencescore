@@ -1,6 +1,6 @@
 # Receipt & Review-Right Specification v0.1
 
-Status: **draft**. Spec identifier: `audience-score/receipt@0.1`.
+Status: **draft**. Spec identifier: `audiencescore/receipt@0.1`.
 
 The admission rule of the whole protocol is one sentence: **no receipt, no
 verdict.** A verdict can only be written by spending a *review right*, and a
@@ -29,7 +29,7 @@ score function) are normative in [/score-spec](../score-spec/score-spec-v0.1.md)
 
 ```json
 {
-  "spec": "audience-score/receipt@0.1",
+  "spec": "audiencescore/receipt@0.1",
   "tier": "vendor_receipt",
   "vendor_id": "<vendor id>",
   "tx_id": "<vendor-unique transaction id>",

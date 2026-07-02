@@ -22,7 +22,7 @@ const PROOF_TIERS = Object.freeze({
 /** A vendor-signed receipt (the "vendor_receipt" proof tier). */
 function issueVendorReceipt({ vendorPrivateKey, vendorPublicString, vendorId, txId, amountCents, currency, issuedAt, locality }) {
   const body = {
-    spec: 'audience-score/receipt@0.1',
+    spec: 'audiencescore/receipt@0.1',
     tier: 'vendor_receipt',
     vendor_id: vendorId,
     tx_id: txId,

@@ -19,20 +19,20 @@ may be sealed, under hash-commit-then-reveal accountability.
 
 ## Specifications
 
-- [Event spec](https://github.com/audiencescore/audience-score/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
-- [Receipt spec](https://github.com/audiencescore/audience-score/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
-- [Score spec v0.1](https://github.com/audiencescore/audience-score/blob/main/score-spec/score-spec-v0.1.md): the score math, normative
-- [Read API (draft OpenAPI)](https://github.com/audiencescore/audience-score/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
-- Versioned permalink for this release: [v0.1.0 tag](https://github.com/audiencescore/audience-score/tree/v0.1.0)
+- [Event spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
+- [Receipt spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
+- [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md): the score math, normative
+- [Read API (draft OpenAPI)](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
+- Versioned permalink for this release: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
 
 ## Reference implementation
 
-- [Overview and quickstart](https://github.com/audiencescore/audience-score/blob/main/reference-impl/README.md): zero-dependency Node.js; `node reference-impl/demo.js` runs receipt → verdict → score → MCP query end to end
-- [MCP server](https://github.com/audiencescore/audience-score/blob/main/reference-impl/src/mcp-server.js): JSON-RPC 2.0 over stdio, `get_score` returns a signed manifest
+- [Overview and quickstart](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/README.md): zero-dependency Node.js; `node reference-impl/demo.js` runs receipt → verdict → score → MCP query end to end
+- [MCP server](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/src/mcp-server.js): JSON-RPC 2.0 over stdio, `get_score` returns a signed manifest
 
 ## Governance and policy
 
-- [Governance constitution](https://github.com/audiencescore/audience-score/blob/main/GOVERNANCE.md): the open-forever guarantees and sealed-admission accountability
-- [Architecture overview](https://github.com/audiencescore/audience-score/blob/main/docs/architecture.md)
-- [Prior art and comparisons](https://github.com/audiencescore/audience-score/blob/main/docs/prior-art.md)
-- [Contributing](https://github.com/audiencescore/audience-score/blob/main/CONTRIBUTING.md): RFC process for spec changes, DCO for code
+- [Governance constitution](https://github.com/audiencescore/audiencescore/blob/main/GOVERNANCE.md): the open-forever guarantees and sealed-admission accountability
+- [Architecture overview](https://github.com/audiencescore/audiencescore/blob/main/docs/architecture.md)
+- [Prior art and comparisons](https://github.com/audiencescore/audiencescore/blob/main/docs/prior-art.md)
+- [Contributing](https://github.com/audiencescore/audiencescore/blob/main/CONTRIBUTING.md): RFC process for spec changes, DCO for code

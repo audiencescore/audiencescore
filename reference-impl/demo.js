@@ -104,7 +104,7 @@ const manifest = renderScore(log.events, {
 console.log(JSON.stringify(manifest, null, 2));
 
 step('7. Query over MCP and verify the signed manifest');
-const logFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'audience-score-')), 'events.jsonl');
+const logFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'audiencescore-')), 'events.jsonl');
 fs.writeFileSync(logFile, log.toJSONL());
 
 const server = spawn(process.execPath, [path.join(__dirname, 'src', 'mcp-server.js'), logFile], {

@@ -68,7 +68,7 @@
         "type": "object",
         "required": ["spec_version", "vendor_id", "locality", "sample_size", "displayed", "computed_at", "provenance"],
         "properties": {
-          "spec_version": { "type": "string", "examples": ["audience-score/score-spec@0.1"] },
+          "spec_version": { "type": "string", "examples": ["audiencescore/score-spec@0.1"] },
           "vendor_id": { "type": "string" },
           "locality": {
             "type": "object",

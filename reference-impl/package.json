@@ -1,5 +1,5 @@
 {
-  "name": "audience-score-reference-impl",
+  "name": "audiencescore-reference-impl",
   "version": "0.1.0",
   "description": "Reference implementation of the Audience Score protocol: attestation-gated verdicts, hash-chained event log, deterministic score rendering, MCP read API.",
   "license": "Apache-2.0",

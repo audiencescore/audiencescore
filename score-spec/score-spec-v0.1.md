@@ -1,6 +1,6 @@
 # Score Specification v0.1
 
-Status: **draft**. Spec identifier: `audience-score/score-spec@0.1`.
+Status: **draft**. Spec identifier: `audiencescore/score-spec@0.1`.
 
 The score is a **versioned, deterministic, pure function** over verdict
 events. Any party holding the event log and this document must be able to
@@ -94,7 +94,7 @@ A rendering is published as a signed manifest:
 ```json
 {
   "manifest": {
-    "spec_version": "audience-score/score-spec@0.1",
+    "spec_version": "audiencescore/score-spec@0.1",
     "vendor_id": "…",
     "locality": { "state": "CO" },
     "sample_size": 12,

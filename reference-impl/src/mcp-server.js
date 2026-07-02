@@ -55,7 +55,7 @@ function handle(message) {
     return reply(id, {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { tools: {} },
-      serverInfo: { name: 'audience-score', version: '0.1.0' },
+      serverInfo: { name: 'audiencescore', version: '0.1.0' },
     });
   }
   if (method === 'notifications/initialized') return null;

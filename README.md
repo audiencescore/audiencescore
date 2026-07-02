@@ -2,7 +2,7 @@
 
 **One receipt, one thumb, zero pay-to-play.**
 
-[![CI](https://github.com/audiencescore/audience-score/actions/workflows/ci.yml/badge.svg)](https://github.com/audiencescore/audience-score/actions/workflows/ci.yml)
+[![CI](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml/badge.svg)](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSE)
 [![Spec: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-lightgrey.svg)](LICENSE-CC-BY-4.0)
 [![Data: ODbL](https://img.shields.io/badge/data-ODbL-lightgrey.svg)](data-commons/LICENSE-ODbL)
@@ -34,8 +34,8 @@ stage is for — open an issue.
 Requires Node.js 18+. No dependencies to install.
 
 ```sh
-git clone https://github.com/audiencescore/audience-score.git
-cd audience-score
+git clone https://github.com/audiencescore/audiencescore.git
+cd audiencescore
 node reference-impl/demo.js
 ```
 

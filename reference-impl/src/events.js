@@ -11,7 +11,7 @@ const {
   verifyPayload,
 } = require('./crypto');
 
-const EVENT_SPEC = 'audience-score/event@0.1';
+const EVENT_SPEC = 'audiencescore/event@0.1';
 const GENESIS = '0'.repeat(64);
 
 /**

@@ -1,6 +1,6 @@
 # Event Specification v0.1
 
-Status: **draft**. Spec identifier: `audience-score/event@0.1`.
+Status: **draft**. Spec identifier: `audiencescore/event@0.1`.
 Normative for the event log; the reference implementation in
 [`/reference-impl`](../reference-impl/) implements it.
 
@@ -31,7 +31,7 @@ Keys and signatures are base64url-encoded; public keys use SPKI DER.
 
 ```json
 {
-  "spec": "audience-score/event@0.1",
+  "spec": "audiencescore/event@0.1",
   "type": "verdict",
   "prev": "<sha256 hex of the previous event's canonical form, or 64 zeros>",
   "body": { "...type-specific payload..." },
