@@ -25,6 +25,9 @@ jobs:
             node --check "$f"
           done
 
+      - name: Check docs links
+        run: node .github/scripts/check-links.js
+
       - name: Unit tests
         run: node --test reference-impl/test/*.test.js
 
