@@ -1,0 +1,107 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Audience Score Read API",
+    "version": "0.1.0-draft",
+    "description": "DESIGN DRAFT — there is no live deployment of this API yet. This document specifies the planned public REST read path, a mirror of the MCP `get_score` tool that is the current reference read interface (see /reference-impl). Reading scores requires no authentication. Every response is an Ed25519-signed score manifest: verify `sig` over the canonical JSON of `manifest` against `signer`; trusting the transport or the server is never required.",
+    "license": {
+      "name": "CC BY 4.0",
+      "identifier": "CC-BY-4.0"
+    }
+  },
+  "paths": {
+    "/v0/scores/{vendor_id}": {
+      "get": {
+        "operationId": "getScore",
+        "summary": "Get the signed audience score manifest for a vendor",
+        "description": "Returns the percentage of verified thumbs-up over attestation-gated verdicts, with sample size, Wilson 95% lower bound, dimension sub-scores, locality scope, spec version, and a provenance hash of the exact event set used — signed by the rendering key.",
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Vendor identifier"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "description": "Optional US state code to scope the score (e.g. CO). Omitted = national scope."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed score manifest",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SignedScoreManifest" }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown vendor"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SignedScoreManifest": {
+        "type": "object",
+        "required": ["manifest", "signer", "sig"],
+        "properties": {
+          "manifest": { "$ref": "#/components/schemas/ScoreManifest" },
+          "signer": {
+            "type": "string",
+            "description": "Rendering public key: base64url-encoded SPKI DER Ed25519"
+          },
+          "sig": {
+            "type": "string",
+            "description": "base64url Ed25519 signature over the canonical JSON of `manifest` (keys sorted at every level, no whitespace)"
+          }
+        }
+      },
+      "ScoreManifest": {
+        "type": "object",
+        "required": ["spec_version", "vendor_id", "locality", "sample_size", "displayed", "computed_at", "provenance"],
+        "properties": {
+          "spec_version": { "type": "string", "examples": ["audience-score/score-spec@0.1"] },
+          "vendor_id": { "type": "string" },
+          "locality": {
+            "type": "object",
+            "description": "Either {\"state\": \"CO\"} or {\"scope\": \"national\"}"
+          },
+          "sample_size": { "type": "integer", "description": "Raw count of in-scope verdicts" },
+          "displayed": { "type": "boolean", "description": "False below the 10-verdict floor; score fields are null" },
+          "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Weighted percent verified thumbs-up" },
+          "wilson_lower_bound": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "dimensions": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/DimensionScore" }
+          },
+          "computed_at": { "type": "string", "format": "date-time" },
+          "provenance": {
+            "type": "object",
+            "required": ["event_count", "event_set_hash"],
+            "properties": {
+              "event_count": { "type": "integer" },
+              "event_set_hash": { "type": "string", "description": "sha256 hex of the sorted ids of the exact event set used" }
+            }
+          }
+        }
+      },
+      "DimensionScore": {
+        "type": "object",
+        "required": ["displayed", "sample_size"],
+        "properties": {
+          "displayed": { "type": "boolean" },
+          "percent_positive": { "type": "number", "minimum": 0, "maximum": 1 },
+          "sample_size": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

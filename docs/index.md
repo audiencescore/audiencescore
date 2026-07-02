@@ -11,6 +11,8 @@ thumbs-up, recomputable by anyone from the public event log.
 - [Score specification v0.1](../score-spec/score-spec-v0.1.md)
 - [Governance (the constitution)](../GOVERNANCE.md)
 - [Reference implementation](../reference-impl/README.md)
+- [Prior art and related systems](prior-art.md)
+- [Read API — draft OpenAPI](../protocol/openapi.json)
 
 Status: spec v0.1, early draft, no live deployment. Feedback via GitHub
 issues is the point of this stage.

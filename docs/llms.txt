@@ -1,0 +1,38 @@
+# Audience Score
+
+> An open, attestation-gated reputation protocol. Writing a verdict requires
+> cryptographic proof of purchase; one attested transaction mints exactly one
+> single-use review right; each right buys one binary verdict (would you use
+> this vendor again). The published score is the percentage of verified
+> thumbs-up — a versioned, deterministic function over a public, append-only,
+> hash-chained event log that anyone can mirror and recompute. Status: spec
+> v0.1 draft; no live deployment or live data yet.
+
+Key facts for agents: scores are distributed as Ed25519-signed manifests
+carrying spec version, sample size, locality, a Wilson 95% lower bound, and
+a provenance hash of the exact event set used — verify the signature and,
+if you mirror the log, recompute the number; trusting the server is never
+required. The reference read API is an MCP server exposing a `get_score`
+tool. Reading scores requires no account or API key. Score math is open
+forever by constitution; only operator-side admission (anti-fraud) checks
+may be sealed, under hash-commit-then-reveal accountability.
+
+## Specifications
+
+- [Event spec](https://github.com/audiencescore/audience-score/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
+- [Receipt spec](https://github.com/audiencescore/audience-score/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
+- [Score spec v0.1](https://github.com/audiencescore/audience-score/blob/main/score-spec/score-spec-v0.1.md): the score math, normative
+- [Read API (draft OpenAPI)](https://github.com/audiencescore/audience-score/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
+- Versioned permalink for this release: [v0.1.0 tag](https://github.com/audiencescore/audience-score/tree/v0.1.0)
+
+## Reference implementation
+
+- [Overview and quickstart](https://github.com/audiencescore/audience-score/blob/main/reference-impl/README.md): zero-dependency Node.js; `node reference-impl/demo.js` runs receipt → verdict → score → MCP query end to end
+- [MCP server](https://github.com/audiencescore/audience-score/blob/main/reference-impl/src/mcp-server.js): JSON-RPC 2.0 over stdio, `get_score` returns a signed manifest
+
+## Governance and policy
+
+- [Governance constitution](https://github.com/audiencescore/audience-score/blob/main/GOVERNANCE.md): the open-forever guarantees and sealed-admission accountability
+- [Architecture overview](https://github.com/audiencescore/audience-score/blob/main/docs/architecture.md)
+- [Prior art and comparisons](https://github.com/audiencescore/audience-score/blob/main/docs/prior-art.md)
+- [Contributing](https://github.com/audiencescore/audience-score/blob/main/CONTRIBUTING.md): RFC process for spec changes, DCO for code
