@@ -6,7 +6,7 @@ live deployment.
 1. **Full-fidelity export.** The event log is exportable as JSONL, one
    canonical-form event per line, in chain order. A mirror that replays the
    file through the verifier in
-   [event-spec §5](../protocol/event-spec.md#5-log-verification) holds
+   [event-spec §6](../protocol/event-spec.md#6-log-verification) holds
    provably the same history as the origin.
 2. **Incremental sync.** Because the log is append-only and hash-chained, a
    mirror syncs by requesting events after its current head hash. Any fork
