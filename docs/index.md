@@ -5,6 +5,7 @@ verified receipt mints one single-use review right; one right buys one
 binary verdict; the published score is the percentage of verified
 thumbs-up, recomputable by anyone from the public event log.
 
+- [How a review actually happens](how-a-review-happens.md)
 - [Architecture overview](architecture.md)
 - [Event specification](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md)
 - [Receipt & review-right specification](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md)
