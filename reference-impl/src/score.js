@@ -33,6 +33,23 @@ function timeDecay(ageDays) {
 }
 
 /**
+ * A well-formed verdict for this vendor (and state, if scoped). Returns false
+ * for anything malformed rather than throwing: a signed-but-garbage event in a
+ * hostile log must be skipped, not allowed to crash recomputation.
+ */
+function isScopedVerdict(e, vendorId, state) {
+  if (!e || e.type !== 'verdict') return false;
+  const b = e.body;
+  if (!b || typeof b !== 'object') return false;
+  if (b.verdict !== 'up' && b.verdict !== 'down') return false;
+  if (!b.vendor || b.vendor.id !== vendorId) return false;
+  if (!b.receipt || typeof b.receipt.tier !== 'string') return false;
+  if (typeof b.issued_at !== 'string' || Number.isNaN(Date.parse(b.issued_at))) return false;
+  if (state && (!b.service_locality || b.service_locality.state !== state)) return false;
+  return true;
+}
+
+/**
  * Render the audience score for one vendor (optionally scoped to a state)
  * from verdict events. Returns the manifest body: score, sample size,
  * confidence bound, dimension sub-scores, locality, spec version, and the
@@ -40,21 +57,22 @@ function timeDecay(ageDays) {
  */
 function renderScore(events, { vendorId, state = null, now }) {
   const nowMs = Date.parse(now);
-  const selected = events.filter((e) => {
-    if (e.type !== 'verdict') return false;
-    if (e.body.vendor.id !== vendorId) return false;
-    if (state && e.body.service_locality.state !== state) return false;
-    return true;
-  });
+  // In-scope, well-formed verdicts for this vendor. Malformed bodies are
+  // skipped, never thrown on — a hostile log must not crash recomputation.
+  const inScope = events.filter((e) => isScopedVerdict(e, vendorId, state));
+
+  // Only verdicts backed by a known proof tier carry weight and count toward
+  // the sample; weightless verdicts (unknown/absent tier) cannot pad the floor.
+  const scored = inScope.filter((e) => PROOF_TIERS[e.body.receipt.tier] !== undefined);
 
   let weightTotal = 0;
   let weightUp = 0;
   const dims = {};
 
-  for (const e of selected) {
+  for (const e of scored) {
     const tier = PROOF_TIERS[e.body.receipt.tier];
     const ageDays = (nowMs - Date.parse(e.body.issued_at)) / 86_400_000;
-    const w = (tier ? tier.weight : 0) * timeDecay(ageDays);
+    const w = tier.weight * timeDecay(ageDays);
     weightTotal += w;
     if (e.body.verdict === 'up') weightUp += w;
 
@@ -67,12 +85,12 @@ function renderScore(events, { vendorId, state = null, now }) {
     }
   }
 
-  const sampleSize = selected.length;
-  const displayed = sampleSize >= MIN_SAMPLE;
+  const sampleSize = scored.length;
+  const displayed = sampleSize >= MIN_SAMPLE && weightTotal > 0;
 
   const dimensions = {};
   for (const [dim, d] of Object.entries(dims)) {
-    dimensions[dim] = d.count >= MIN_DIMENSION_SAMPLE
+    dimensions[dim] = (d.count >= MIN_DIMENSION_SAMPLE && d.total > 0)
       ? {
           displayed: true,
           percent_positive: round4(d.positive / d.total),
@@ -92,8 +110,8 @@ function renderScore(events, { vendorId, state = null, now }) {
     dimensions,
     computed_at: now,
     provenance: {
-      event_count: selected.length,
-      event_set_hash: sha256Hex(canonicalize(selected.map((e) => e.id).sort())),
+      event_count: scored.length,
+      event_set_hash: sha256Hex(canonicalize(scored.map((e) => e.id).sort())),
     },
   };
 }

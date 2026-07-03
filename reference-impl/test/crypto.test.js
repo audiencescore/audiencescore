@@ -42,3 +42,14 @@ test('canonicalize handles malformed signature input gracefully', () => {
   assert.equal(verifyPayload(publicKeyToString(publicKey), { a: 1 }, 'not-a-signature'), false);
   assert.equal(verifyPayload('not-a-key', { a: 1 }, 'not-a-signature'), false);
 });
+
+test('canonicalize rejects non-finite numbers instead of colliding with null', () => {
+  assert.throws(() => canonicalize({ x: NaN }), /non-finite/);
+  assert.throws(() => canonicalize({ x: Infinity }), /non-finite/);
+  assert.throws(() => canonicalize([1, -Infinity]), /non-finite/);
+});
+
+test('canonicalize omits undefined object properties (JSON semantics)', () => {
+  assert.equal(canonicalize({ a: 1, b: undefined }), canonicalize({ a: 1 }));
+  assert.equal(canonicalize({ a: 1 }), '{"a":1}');
+});

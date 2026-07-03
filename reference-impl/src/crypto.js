@@ -31,13 +31,21 @@ function publicKeyFromString(encoded) {
  * same bytes, so hashes and signatures are reproducible by any mirror.
  */
 function canonicalize(value) {
+  // Non-finite numbers have no JSON representation; JSON.stringify silently
+  // turns them into `null`, which would collide with a real null. Reject them
+  // so a signed payload can never mean two different things.
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    throw new TypeError('canonicalize: non-finite numbers are not representable');
+  }
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return '[' + value.map(canonicalize).join(',') + ']';
+    // JSON semantics: undefined array slots serialize as null.
+    return '[' + value.map((v) => canonicalize(v === undefined ? null : v)).join(',') + ']';
   }
-  const keys = Object.keys(value).sort();
+  // JSON semantics: object properties whose value is undefined are omitted.
+  const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort();
   const entries = keys.map((k) => JSON.stringify(k) + ':' + canonicalize(value[k]));
   return '{' + entries.join(',') + '}';
 }

@@ -99,6 +99,14 @@ rl.on('line', (line) => {
     process.stdout.write(JSON.stringify(replyError(null, -32700, 'parse error')) + '\n');
     return;
   }
-  const response = handle(message);
+  let response;
+  try {
+    response = handle(message);
+  } catch (err) {
+    // A malformed request or an unrenderable log must not take the server
+    // down: fail this one call with a JSON-RPC error, keep serving.
+    response = replyError(message && message.id !== undefined ? message.id : null,
+      -32603, `internal error: ${err.message}`);
+  }
   if (response) process.stdout.write(JSON.stringify(response) + '\n');
 });
