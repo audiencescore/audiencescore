@@ -2,7 +2,7 @@
 
 **One receipt, one thumb, zero pay-to-play.**
 
-*Reviews your AI files with proof of purchase — scores no one can buy.*
+*The open rating system where every review is proven by a purchase — scores no one can buy.*
 
 [![CI](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml/badge.svg)](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSE)
