@@ -59,10 +59,9 @@ time in this locality*.
   may bound how long after the transaction a right remains spendable; this
   will go through the RFC process.
 
-## 4. Public admission checks
+## 4. Admission checks
 
-The following checks are public and deterministic; they are the only
-admission logic in the reference implementation:
+Every verdict passes these deterministic checks at admission:
 
 1. proof verifies under its tier's rules;
 2. right not previously minted (uniqueness of `right_id`);
@@ -70,8 +69,28 @@ admission logic in the reference implementation:
 4. verdict event is well-formed under [event-spec.md](event-spec.md) and
    chains correctly.
 
-Operator-side sealed admission detectors — the anti-fraud layer for attacks
-that survive the receipt gate, such as wash trading — exist *outside* this
-repository and are governed by the commitment/reveal/audit machinery in
+### What is independently verifiable, and what is operator-attested (v0.1)
+
+Be precise about the trust model, because "verify, don't trust" only means
+something where it is literally true:
+
+- **Publicly verifiable from the log today:** check 4. Anyone holding the
+  event log can re-run chain verification and recompute every score bit-for-bit
+  (see [event-spec §6](event-spec.md#6-log-verification)).
+- **Operator-attested in v0.1:** checks 1–3. The published log records a
+  verdict's `right_id` and `proof_hash`, **not** the receipt itself, and log
+  verification does not enforce `right_id` uniqueness. So receipt validity and
+  single-use ("one right, one verdict, ever") are enforced by the operator's
+  admission pipeline; a mirror cannot yet independently confirm that an
+  admitted verdict was receipt-gated or non-duplicate.
+
+Closing that gap — emitting a per-verdict admission/nullifier-spend event into
+the log so mirrors can verify single-use and receipt-gating themselves — is a
+planned revision, tracked as an open item. Until then, do not describe checks
+1–3 as publicly reconstructible.
+
+Operator-side sealed anti-fraud detectors — for attacks that survive the
+receipt gate, such as wash trading — exist *outside* this repository and are
+governed by the commitment/reveal/audit machinery in
 [GOVERNANCE.md](../GOVERNANCE.md). They can flag or quarantine a submission
 with a public signed event; they can never alter score math or edit the log.

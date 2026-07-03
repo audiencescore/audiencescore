@@ -4,6 +4,12 @@ There is no form. Nobody sits down to "write a review" in this protocol — no
 star box, no text field, no "rate your experience" email. **The form is dead.
 The agent is the input mechanism.**
 
+> **Status (v0.1):** this page describes the intended flow. The reference
+> implementation today verifies vendor-signed receipts and renders scores;
+> DKIM-email, card-link, and agentic-mandate proof adapters, and the public
+> moderation events referenced below, are specified but not yet built. They
+> are marked *(planned)* where they appear.
+
 Here is the actual flow, end to end:
 
 1. **You complain to your agent.** "The car wash left my car still dirty."
@@ -13,9 +19,10 @@ Here is the actual flow, end to end:
 2. **The agent finds the proof it already holds.** It does not ask you for a
    receipt. It verifies the DKIM-signed purchase confirmation already sitting
    in your mailbox — the email the vendor's own mail server cryptographically
-   signed when you paid. **A receipt is never paper.** It is any cryptographic
-   proof the agent already holds: a DKIM-signed email, an agentic-commerce
-   payment mandate, or a vendor-signed receipt
+   signed when you paid *(planned adapter)*. **A receipt is never paper.** It
+   is any cryptographic proof the agent already holds: a DKIM-signed email
+   *(planned)*, an agentic-commerce payment mandate *(planned)*, or a
+   vendor-signed receipt (built today)
    ([receipt-spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md)).
 
 3. **It computes the transaction nullifier.** A deterministic value derived
@@ -27,11 +34,13 @@ Here is the actual flow, end to end:
    log
    ([event-spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md)).
 
-5. **Admission checks run.** Public checks (proof valid, nullifier unspent,
-   duplicate detection) and the operator's sealed anti-fraud tripwires
+5. **Admission checks run.** Deterministic checks (proof valid, nullifier
+   unspent, duplicate detection) and the operator's sealed anti-fraud tripwires
    ([governance](https://github.com/audiencescore/audiencescore/blob/main/GOVERNANCE.md))
-   decide whether the verdict enters the scored set — and every decision is
-   itself a public, signed event.
+   decide whether the verdict enters the scored set. In v0.1 these run in the
+   operator's admission pipeline; publishing each decision as a public, signed
+   moderation event — so mirrors can audit admission themselves — is *(planned)*
+   ([receipt-spec §4](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md#4-admission-checks)).
 
 6. **The score re-renders.** The vendor's audience score is a deterministic
    function over the log
@@ -52,9 +61,12 @@ You can fake the pixels; you can't fake the key. A fabricated proof — a
 screenshotted email, an invented order number, a doctored PDF — fails
 signature verification: the DKIM signature, the payment mandate, or the
 vendor key simply does not validate, so the verdict never mints. And even a
-*real* proof is worth exactly one verdict: the transaction nullifier makes
-each genuine purchase spendable once and only once, so a real receipt can
-never be replayed into a flood of reviews.
+*real* proof is worth exactly one verdict: the transaction nullifier is
+designed so each genuine purchase is spendable once and only once, so a real
+receipt can't be replayed into a flood of reviews. (In v0.1 that single-use
+rule is enforced at admission, not yet reconstructible from the public log
+alone; making it independently verifiable is
+[planned](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md#4-admission-checks).)
 
 **What about two businesses with the same name?**
 

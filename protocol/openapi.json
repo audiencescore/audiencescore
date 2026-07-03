@@ -74,8 +74,8 @@
             "type": "object",
             "description": "Either {\"state\": \"CO\"} or {\"scope\": \"national\"}"
           },
-          "sample_size": { "type": "integer", "description": "Raw count of in-scope verdicts" },
-          "displayed": { "type": "boolean", "description": "False below the 10-verdict floor; score fields are null" },
+          "sample_size": { "type": "integer", "description": "Count of attributable (known-proof-tier) in-scope verdicts" },
+          "displayed": { "type": "boolean", "description": "False below the 10-verdict floor or when total weight is zero; when false, score fields are null" },
           "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Weighted percent verified thumbs-up" },
           "wilson_lower_bound": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
           "dimensions": {

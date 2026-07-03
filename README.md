@@ -12,8 +12,8 @@
 An open protocol for reputation you can verify instead of trust. The only way
 to leave a verdict on a vendor is to cryptographically prove you actually
 bought the thing, every verdict is a single binary — would you use them
-again? — and the published score is nothing more than the percentage of
-verified thumbs-up. Anyone can recompute any score from the public event
+again? — and the published score is the percentage of verified thumbs-up
+(weighted by proof strength and recency). Anyone can recompute any score from the public event
 log. No one can buy a better one, because there is no ranking to sell:
 the score is a deterministic function over signed events.
 
