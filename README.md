@@ -2,6 +2,8 @@
 
 **One receipt, one thumb, zero pay-to-play.**
 
+*Reviews your AI files with proof of purchase — scores no one can buy.*
+
 [![CI](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml/badge.svg)](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSE)
 [![Spec: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-lightgrey.svg)](LICENSE-CC-BY-4.0)
@@ -47,6 +49,10 @@ a Wilson confidence bound → an MCP client queries the score and verifies the
 signature on the returned manifest.
 
 ## How it works
+
+For a plain-language walkthrough of the agent flow — how a complaint to your
+assistant becomes a signed, receipt-gated verdict without a form ever existing
+— see [How a review actually happens](docs/how-a-review-happens.md).
 
 ```mermaid
 flowchart LR
