@@ -92,8 +92,15 @@ try {
 
 step('5. Tamper evidence');
 const tampered = EventLog.fromJSONL(log.toJSONL());
-tampered.events[4].body.verdict = 'up'; // flip a thumb after the fact
-console.log(`flipped one verdict in a copy; chain verified: ${tampered.verifyChain()} (expected false)`);
+// Flip a verdict to its opposite, so this is always a real mutation.
+const victim = tampered.events[4].body;
+victim.verdict = victim.verdict === 'up' ? 'down' : 'up';
+const stillValid = tampered.verifyChain();
+console.log(`flipped one verdict in a copy; chain verified: ${stillValid} (expected false)`);
+if (stillValid) {
+  console.error('TAMPER CHECK FAILED: a mutated log still verified');
+  process.exit(1);
+}
 
 step('6. Deterministic score rendering');
 const manifest = renderScore(log.events, {

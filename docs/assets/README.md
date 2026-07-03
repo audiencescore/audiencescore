@@ -1,8 +1,7 @@
-# Brand assets — DRAFT, pending approval
+# Brand assets
 
-Placeholder wordmark assets for review. **Nothing here has been uploaded to
-the organization or published anywhere** — these are staged in the private
-repo for Dusty to approve or replace.
+The project's wordmark and avatar. Intentionally minimal text marks; a
+designed identity can replace them later without touching anything else.
 
 | File | Size | Use |
 |---|---|---|

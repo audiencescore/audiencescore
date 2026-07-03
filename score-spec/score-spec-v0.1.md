@@ -48,15 +48,19 @@ age_days(e) = (computed_at − e.body.issued_at) / 86 400 000 ms, floored at 0
 
 ## 3. The score
 
-Let `W` be the sum of `w(e)` over all in-scope verdicts and `W↑` the sum
-over verdicts with `verdict = "up"`:
+Let `W` be the sum of `w(e)` over all in-scope, attributable verdicts (those
+with a known proof tier) and `W↑` the same sum over verdicts with
+`verdict = "up"`:
 
 ```
 score = W↑ / W
 ```
 
-The headline score is the **percentage of verified thumbs-up** — nothing
-else enters it.
+The headline score is the **weighted percentage of verified thumbs-up** — the
+only *signal* that enters is the up/down thumb (never the narrative or the
+dimension chips), and each thumb is weighted by its proof tier (§2) and
+recency. Verdicts whose proof tier is unknown weigh 0 and are excluded
+entirely (they do not enter `W`, the sample count, or the floor below).
 
 ## 4. Confidence: Wilson lower bound
 
@@ -75,9 +79,11 @@ from outranking a 480-for-500 one.
 ## 5. Display floors
 
 - **Headline floor.** No score is displayed for scopes with fewer than
-  **10** verdicts (raw count, not weighted). Below the floor the manifest
-  reports `displayed: false` and null score fields — preventing a handful
-  of verdicts from defining a vendor.
+  **10** *attributable* verdicts — that is, verdicts carrying a known proof
+  tier (`sample_size` counts these, not raw submissions, so a flood of
+  weightless verdicts cannot trip the floor). Below the floor, or when the
+  total weight is zero, the manifest reports `displayed: false` and null score
+  fields — preventing a handful of verdicts from defining a vendor.
 - **Dimension floor.** Each optional dimension chip (`quality`, `on_time`,
   `price`, `service`) displays its percent-positive only at ≥ **10**
   answered chips for that dimension in scope.

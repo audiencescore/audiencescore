@@ -22,10 +22,28 @@ Normative for the event log; the reference implementation in
 
 ## 2. Canonical serialization
 
-Signatures and hashes are computed over **canonical JSON**: object keys
-sorted lexicographically at every nesting level, arrays in order, no
-insignificant whitespace, UTF-8 encoding. Hashes are SHA-256, hex-encoded.
-Keys and signatures are base64url-encoded; public keys use SPKI DER.
+Signatures and hashes are computed over **canonical JSON**. Because a mirror
+in another language must produce byte-identical bytes to verify a signature or
+recompute a score, the canonical form is pinned rather than left to each
+JSON library:
+
+- Object keys are sorted by Unicode code point at every nesting level and
+  emitted with no insignificant whitespace; arrays keep their order. (The
+  event and verdict schemas use only ASCII keys, for which this order is
+  unambiguous.)
+- Strings use JSON's minimal escaping; the output is UTF-8.
+- Numbers are **finite only** — `NaN` and `Infinity` are not representable and
+  MUST be rejected, never coerced to `null`. Values that reach a signed
+  payload are integers or already rounded to fixed precision by the score
+  spec, so no float-formatting ambiguity is signed over.
+- `undefined` is not a value; object properties whose value is `undefined`
+  are omitted.
+
+This follows the [RFC 8785 JSON Canonicalization Scheme](https://www.rfc-editor.org/rfc/rfc8785)
+model; a conforming implementation SHOULD follow JCS so a Go/Python/Rust mirror
+computes the same bytes as the JavaScript reference (`reference-impl/src/crypto.js`),
+which is normative for v0.1. Hashes are SHA-256, hex-encoded; keys and
+signatures are base64url-encoded; public keys use SPKI DER.
 
 ## 3. Event envelope
 
@@ -71,7 +89,10 @@ is the genesis value (64 zero characters).
 - `vendor.locality` / `service_locality` — locality is captured at write
   time so scores can render at national, state, and metro resolution.
 - `receipt.right_id` — the single-use review right this verdict spends
-  (see [receipt-spec.md](receipt-spec.md)). One right, one verdict, ever.
+  (see [receipt-spec.md](receipt-spec.md)). One right, one verdict — enforced
+  at admission; §6 log verification does not itself dedupe `right_id`, so in
+  v0.1 single-use is operator-attested, not reconstructible from the log alone
+  ([receipt-spec §4](receipt-spec.md#4-admission-checks)).
 - `receipt.proof_hash` — hash of the underlying proof, linking the verdict
   to its transaction without embedding the transaction's contents.
 
