@@ -88,7 +88,7 @@ demonstrates zero-knowledge proofs and ring signatures preserving reviewer
 anonymity while keeping feedback verifiable — proving "I hold a valid,
 unused credential for this transaction" without revealing identity or
 purchase history. This is the research base for the privacy layer planned
-in [event-spec §6](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md#6-privacy-posture-forward-looking),
+in [event-spec §7](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md#7-privacy-posture-forward-looking),
 alongside selective disclosure in the W3C Verifiable Credentials family.
 
 ## Summary
