@@ -16,12 +16,14 @@ const { renderScore, signManifest } = require('./score');
 
 const PROTOCOL_VERSION = '2025-06-18';
 
+// With a log file, serve it; with no argument, serve an empty log. The empty
+// case still answers MCP introspection (initialize / tools/list) and returns
+// an empty-sample score, so the server boots out of the box — which is what
+// registries like Glama check when they run it in a container.
 const logPath = process.argv[2];
-if (!logPath) {
-  process.stderr.write('usage: mcp-server.js <event-log.jsonl>\n');
-  process.exit(1);
-}
-const eventLog = EventLog.fromJSONL(fs.readFileSync(logPath, 'utf8'));
+const eventLog = logPath
+  ? EventLog.fromJSONL(fs.readFileSync(logPath, 'utf8'))
+  : new EventLog();
 if (!eventLog.verifyChain()) {
   process.stderr.write('event log failed chain verification; refusing to serve\n');
   process.exit(1);
