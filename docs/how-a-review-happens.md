@@ -55,3 +55,15 @@ vendor key simply does not validate, so the verdict never mints. And even a
 *real* proof is worth exactly one verdict: the transaction nullifier makes
 each genuine purchase spendable once and only once, so a real receipt can
 never be replayed into a flood of reviews.
+
+**What about two businesses with the same name?**
+
+They are different identifiers, so they are different score entities — a
+verdict never binds to a name. It binds to a *typed vendor identifier*: a
+DNS-verified vendor key, a platform merchant id read from the proof, or a hash
+of name-plus-address (see the
+[Vendor identity section of the event spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md#5-vendor-identity)).
+"Joe's Plumbing" in Denver and "Joe's Plumbing" in Miami resolve to different
+identifiers and carry entirely separate scores. Collision is impossible by
+construction; the only way two identifiers ever become one entity is a
+cryptographically proven merge, recorded as a public signed event.
