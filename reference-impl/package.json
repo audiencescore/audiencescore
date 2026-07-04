@@ -8,8 +8,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test test/*.test.js test/v02/*.test.js",
-    "demo": "node demo.js"
+    "test": "node --test test/*.test.js test/v02/*.test.js test/pilot/*.test.js",
+    "demo": "node demo.js",
+    "pilot": "node src/pilot/server.js",
+    "pilot:admin": "node src/pilot/admin.js"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1"

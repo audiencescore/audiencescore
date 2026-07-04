@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   event TEXT NOT NULL,
   issued_at TEXT NOT NULL,
   prev TEXT,
+  env TEXT,
   coattest TEXT NOT NULL,
   sig TEXT NOT NULL
 );
@@ -78,7 +79,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   role_at_post TEXT NOT NULL,
   level_at_post INTEGER NOT NULL,
   review_class TEXT NOT NULL,
-  posted_at TEXT NOT NULL
+  posted_at TEXT NOT NULL,
+  env TEXT
 );
 CREATE TABLE IF NOT EXISTS protocol_events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,7 +148,7 @@ class Store {
    * discretion"). Free offerings never take this path: no value moved means
    * no L1; participants enter free offerings at L2 via issueAttestation.
    */
-  recordTransaction({ issuer, holder, role, offering, txId, amountCents, occurredAt, coattesterPrivateKeys = [] }) {
+  recordTransaction({ issuer, holder, role, offering, txId, amountCents, occurredAt, coattesterPrivateKeys = [], env = null }) {
     const offeringRow = this.#offeringRow(offering);
     this.#assertDeclaredIssuer(offeringRow, issuer.publicHex);
     if (offeringRow.price_cents === 0) {
@@ -164,6 +166,7 @@ class Store {
       event: role === 'payer' ? 'paid' : 'enrolled',
       issuedAt: when,
       prev: null,
+      env,
       coattesterPrivateKeys,
     });
     this.db.exec('BEGIN');
@@ -185,7 +188,7 @@ class Store {
    * Standing is monotonic per (holder, offering-version, role) and payers
    * cap at L1; ascensions chain to the prior receipt (spec §3, I-3, F1).
    */
-  issueAttestation({ issuer, holder, role, offering, level, event, issuedAt, coattesterPrivateKeys = [] }) {
+  issueAttestation({ issuer, holder, role, offering, level, event, issuedAt, coattesterPrivateKeys = [], env = null }) {
     const offeringRow = this.#offeringRow(offering);
     this.#assertDeclaredIssuer(offeringRow, issuer.publicHex);
     if (!Number.isInteger(level) || level < 2 || level > 4) {
@@ -204,6 +207,7 @@ class Store {
       event: event ?? { 2: 'participated', 3: 'completed', 4: 'outcome_verified' }[level],
       issuedAt: issuedAt ?? new Date().toISOString(),
       prev: chain.latest ? chain.latest.receipt_id : null,
+      env,
       coattesterPrivateKeys,
     });
     this.#insertReceipt(receipt);
@@ -233,7 +237,7 @@ class Store {
    * mint a second voice); payers rate value only — no facets (AT-10, I-6);
    * facets only against declared components (AT-17, I-6).
    */
-  submitReview({ receiptId, offering, overall, facets = {}, text = null, postedAt }) {
+  submitReview({ receiptId, offering, overall, facets = {}, text = null, postedAt, env = null }) {
     const receipt = this.#receiptRow(receiptId);
     if (!receipt) throw new Error('no receipt, no review (I-1)');
     if (!verifyReceipt(this.#receiptFromRow(receipt))) {
@@ -277,10 +281,10 @@ class Store {
     const reviewClass = offeringRow.price_cents === 0 ? 'verified_participant' : 'verified_purchaser';
     const reviewId = uuidv7();
     this.db.prepare(
-      `INSERT INTO reviews (review_id, receipt_id, offering, overall, facets, text, role_at_post, level_at_post, review_class, posted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO reviews (review_id, receipt_id, offering, overall, facets, text, role_at_post, level_at_post, review_class, posted_at, env)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(reviewId, receiptId, offering, overall, JSON.stringify(facets), text,
-      receipt.role, receipt.level, reviewClass, postedAt ?? new Date().toISOString());
+      receipt.role, receipt.level, reviewClass, postedAt ?? new Date().toISOString(), env);
     return { reviewId, reviewClass };
   }
 
@@ -445,6 +449,7 @@ class Store {
       event: row.event,
       issued_at: row.issued_at,
       prev: row.prev,
+      ...(row.env ? { env: row.env } : {}),
       sig: row.sig,
       coattest: JSON.parse(row.coattest),
     };
@@ -460,10 +465,10 @@ class Store {
 
   #insertReceipt(receipt) {
     this.db.prepare(
-      `INSERT INTO receipts (receipt_id, spec, issuer, holder, role, offering, level, event, issued_at, prev, coattest, sig)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO receipts (receipt_id, spec, issuer, holder, role, offering, level, event, issued_at, prev, env, coattest, sig)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(receipt.receipt_id, receipt.spec, receipt.issuer, receipt.holder, receipt.role, receipt.offering,
-      receipt.level, receipt.event, receipt.issued_at, receipt.prev, JSON.stringify(receipt.coattest), receipt.sig);
+      receipt.level, receipt.event, receipt.issued_at, receipt.prev, receipt.env ?? null, JSON.stringify(receipt.coattest), receipt.sig);
   }
 
   #logEvent(type, payload, loggedAt) {

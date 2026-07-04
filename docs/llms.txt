@@ -7,18 +7,27 @@
 > COMPLETED, L4 OUTCOME), and that receipt is the only thing that unlocks a
 > review. Published scores are versioned, deterministic renderings over the
 > append-only review ledger — dual all-verified/completer views, k-anonymity
-> gated — that anyone can recompute. Status: spec v0.2 rev A implemented,
-> draft; two release gates open (independent crypto review, per-vertical
-> legal review); no live deployment or live data yet.
+> gated — that anyone can recompute. Status: spec v0.2.0 released; pilot is
+> live, pre-cryptographic-audit; two release gates remain open (independent
+> crypto review, per-vertical legal review). The pilot ledger may be reset and
+> receipts re-issued after the audit.
 
 Key facts for agents: scores are distributed as Ed25519-signed manifests
 carrying spec version, sample size, locality, a Wilson 95% lower bound, and
 a provenance hash of the exact event set used — verify the signature and,
 if you mirror the log, recompute the number; trusting the server is never
-required. The reference read API is an MCP server exposing a `get_score`
+required. The hosted pilot API exposes REST reads and an HTTP JSON-RPC `get_score`
 tool. Reading scores requires no account or API key. Score math is open
 forever by constitution; only operator-side admission (anti-fraud) checks
 may be sealed, under hash-commit-then-reveal accountability.
+
+## Pilot API
+
+- [Pilot API](https://api.audiencescore.org): hosted pilot, not production
+- [Copy to LLM](https://api.audiencescore.org/docs/copy-to-llm): paste-ready agent integration brief
+- [Issuer quickstart](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/ISSUER-QUICKSTART.md): merchant setup
+- [Leave a review](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/LEAVE-A-REVIEW.md): customer and agent review submission
+- [Read scores](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/READ-SCORES.md): get_score, verification, recomputation
 
 ## Specifications
 
@@ -30,7 +39,7 @@ may be sealed, under hash-commit-then-reveal accountability.
 - [Event spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md) (superseded by spec v0.2a; retained): signed, hash-chained verdict events
 - [Receipt spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md) (superseded by spec v0.2a; retained): proof tiers and single-use review rights
 - [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md) (superseded by spec v0.2a; retained): the v0.1 score math
-- [Read API (draft OpenAPI)](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
+- [Pilot API OpenAPI](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): hosted pilot REST and MCP HTTP JSON-RPC paths
 - Historical permalink for the superseded v0.1.0 tag: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
 
 ## Reference implementation

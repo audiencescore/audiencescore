@@ -1,0 +1,24 @@
+services:
+  audiencescore-pilot:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.pilot
+    container_name: audiencescore-pilot
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - "8080"
+    volumes:
+      - ${AUDIENCESCORE_HOST_DATA_DIR:-/opt/audiencescore-pilot/data}:/data
+    networks:
+      - cary_bridge
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  cary_bridge:
+    external: true
+    name: cary-bridge_default

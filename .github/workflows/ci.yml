@@ -26,7 +26,7 @@ jobs:
 
       - name: Syntax check
         run: |
-          for f in reference-impl/src/*.js reference-impl/src/v02/*.js reference-impl/demo.js reference-impl/test/*.js reference-impl/test/v02/*.js; do
+          for f in reference-impl/src/*.js reference-impl/src/v02/*.js reference-impl/src/pilot/*.js reference-impl/demo.js reference-impl/test/*.js reference-impl/test/v02/*.js reference-impl/test/pilot/*.js; do
             node --check "$f"
           done
 
@@ -34,7 +34,7 @@ jobs:
         run: node .github/scripts/check-links.js
 
       - name: Unit and acceptance tests (v0.1 suite + AT-1..AT-25)
-        run: node --test reference-impl/test/*.test.js reference-impl/test/v02/*.test.js
+        run: node --test reference-impl/test/*.test.js reference-impl/test/v02/*.test.js reference-impl/test/pilot/*.test.js
 
       - name: End-to-end demo
         run: node reference-impl/demo.js

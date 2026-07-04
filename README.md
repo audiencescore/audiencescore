@@ -22,10 +22,10 @@ from public data.
 
 ## Status
 
-**Spec v0.2 rev A implemented; not yet a release.** See [`spec/`](spec/) for
-the normative document and the adversarial review that shaped it, and
+**Spec v0.2.0 is released; pilot is live.** See [`spec/`](spec/) for the
+normative document and the adversarial review that shaped it, and
 [DRIFT.md](DRIFT.md) for how v0.1 reality was reconciled with it. Two gates
-remain open before any receipt signs a real transaction:
+remain open before production/non-pilot issuance:
 
 1. **Independent cryptographic review** of the receipt scheme — self-reviewed
    crypto is how protocols die, and this repository does not satisfy that gate.
@@ -33,9 +33,21 @@ remain open before any receipt signs a real transaction:
    (finance, healthcare) ships. Verticals are profiles, never forks; the first
    profile (education) will follow the protocol, not modify it.
 
-No live data is being collected. If you build agents, review-integrity tooling,
-or commerce infrastructure, your critique of the spec is exactly what this
-stage is for — open an issue.
+The hosted API is a **pilot deployment, pre-cryptographic-audit**. Pilot
+receipts, signed events, and score manifests carry `env: "pilot"` in the signed
+body. The pilot ledger may be reset and receipts re-issued after the audit. If
+you build agents, review-integrity tooling, or commerce infrastructure, your
+critique of the spec is exactly what this stage is for — open an issue.
+
+## Pilot Is Live
+
+- Pilot API: `https://api.audiencescore.org`
+- Issuer setup: [docs/pilot/ISSUER-QUICKSTART.md](docs/pilot/ISSUER-QUICKSTART.md)
+- Leave a review: [docs/pilot/LEAVE-A-REVIEW.md](docs/pilot/LEAVE-A-REVIEW.md)
+- Read scores: [docs/pilot/READ-SCORES.md](docs/pilot/READ-SCORES.md)
+- Copy to LLM: [docs/pilot/COPY-TO-LLM.md](docs/pilot/COPY-TO-LLM.md)
+
+This is not production. It is the first live pilot for a configured issuer.
 
 ## Quickstart (60 seconds)
 
@@ -116,13 +128,13 @@ exists as an executable test in CI.
 | Path | Contents | License |
 |---|---|---|
 | [`/spec`](spec/) | Protocol spec v0.2a and its adversarial review | CC BY 4.0 |
-| [`/protocol`](protocol/) | Superseded v0.1 event and receipt wire specifications | CC BY 4.0 |
+| [`/protocol`](protocol/) | Pilot OpenAPI plus superseded v0.1 wire specifications | CC BY 4.0 |
 | [`/score-spec`](score-spec/) | Rendering v1 score math plus superseded v0.1 math | CC BY 4.0 |
 | [`/conformance`](conformance/) | Signed test vectors and the reference verifier | CC BY 4.0 |
 | [`/tests`](tests/) | The acceptance-test register (AT-1..AT-25) | CC BY 4.0 |
 | [`/reference-impl`](reference-impl/) | Node.js reference implementation + MCP server | Apache-2.0 |
 | [`/data-commons`](data-commons/) | Open-data licensing and mirror tooling | ODbL |
-| [`/docs`](docs/) | Rendered documentation | CC BY 4.0 |
+| [`/docs`](docs/) | Rendered documentation, including pilot instructions | CC BY 4.0 |
 
 ## Licensing, deliberately
 

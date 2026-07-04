@@ -1,0 +1,5 @@
+# Nightly local SQLite backup. Install on the VPS with `crontab -e`.
+# Copies /opt/audiencescore-pilot/data/pilot.sqlite to a dated file under
+# /opt/audiencescore-pilot/data/backups. Add an off-box copy step after this
+# if/when an off-box destination is configured.
+17 3 * * * cd /opt/audiencescore-pilot/repo && docker compose -f deploy/audiencescore-pilot/docker-compose.yml run --rm audiencescore-pilot node reference-impl/src/pilot/admin.js backup >> /opt/audiencescore-pilot/data/backups/backup.log 2>&1
