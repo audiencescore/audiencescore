@@ -111,6 +111,27 @@ this repository or the handoff package beyond the format the vectors pin.
 (see GATE-1 above); the swappable signing interface bounds the blast radius if
 the upstream format ever differs.
 
+**D-12 — Issuer binding (post-audit MAJOR finding, fixed).** The independent
+audit of the v0.2a build found that a receipt was checked for a valid
+*signature* but never for being signed by the offering's **declared** issuer.
+A stranger could generate their own key, record a fake one-cent "sale" against
+someone else's offering, obtain a validly-signed L1 receipt, and post a review
+that blended into that offering's score — with no alarm. The spec already
+implies the fix (§2: "Issuer — the party signing receipts: the provider of
+record"), so enforcing it is faithful to the spec, not a deviation.
+**Resolution:** receipts are now bound to the offering's declared issuer at
+three layers — issuance (`recordTransaction`, `issueAttestation` refuse a
+non-declared issuer), review admission (`submitReview` re-checks), and a
+health-check detector (`checkIssuerBinding`) that alarms on any wrong-issuer
+receipt already in storage. Regression tests in
+`reference-impl/test/v02/at-finding-issuer-binding.test.js` reproduce the
+auditor's exact attack and assert every layer refuses it. Proposed as a new
+numbered invariant **I-8** for the next spec revision (currently a code-level
+detector, consistent with how D-6/D-7 flag spec gaps). Note: the merchant-of-
+record / marketplace co-attestation model (spec §4, F9) is unaffected — the
+*issuer* is the provider of record; a marketplace co-attests via `coattest`,
+it does not become the issuer.
+
 ## What was checked and found NOT to be drift
 
 - The seven invariants (I-1..I-7), the threat register (T-1..T-10), roles,

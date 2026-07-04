@@ -20,6 +20,7 @@ function healthCheck(store) {
     ...checkI5AppendOnly(store),
     ...checkI6FacetValidity(store),
     ...checkI7KAnonymity(store),
+    ...checkIssuerBinding(store),
   ];
 }
 
@@ -189,6 +190,30 @@ function checkI7KAnonymity(store) {
     }
   }
   return out;
+}
+
+/**
+ * Issuer binding (addresses the v0.2a audit's MAJOR finding; strengthens T-1).
+ * Every stored receipt must be signed by the DECLARED issuer of the offering
+ * it points at — otherwise a stranger's validly-signed receipt (from their own
+ * key, against someone else's offering) could pollute that offering's score.
+ * The API now refuses this at issuance and admission; this check catches any
+ * such receipt that reached storage another way, so a polluted ledger alarms
+ * instead of scoring silently. Proposed as invariant I-8 for the next spec
+ * revision (see DRIFT.md D-12).
+ */
+function checkIssuerBinding(store) {
+  const rows = store.db.prepare(
+    `SELECT rc.receipt_id, rc.issuer AS receipt_issuer, rc.offering, o.issuer AS declared_issuer
+       FROM receipts rc
+       JOIN offerings o ON (o.offering_id || '@' || o.version) = rc.offering
+      WHERE rc.issuer != o.issuer`,
+  ).all();
+  return rows.map((row) => violation('issuer-binding',
+    'receipt was not signed by the offering\'s declared issuer', {
+      receipt_id: row.receipt_id, offering: row.offering,
+      receipt_issuer: row.receipt_issuer, declared_issuer: row.declared_issuer,
+    }));
 }
 
 module.exports = { healthCheck };

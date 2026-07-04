@@ -148,6 +148,7 @@ class Store {
    */
   recordTransaction({ issuer, holder, role, offering, txId, amountCents, occurredAt, coattesterPrivateKeys = [] }) {
     const offeringRow = this.#offeringRow(offering);
+    this.#assertDeclaredIssuer(offeringRow, issuer.publicHex);
     if (offeringRow.price_cents === 0) {
       throw new Error('free offerings issue no L1: no value moved (spec §3, F2); attest participation at L2 instead');
     }
@@ -185,7 +186,8 @@ class Store {
    * cap at L1; ascensions chain to the prior receipt (spec §3, I-3, F1).
    */
   issueAttestation({ issuer, holder, role, offering, level, event, issuedAt, coattesterPrivateKeys = [] }) {
-    this.#offeringRow(offering);
+    const offeringRow = this.#offeringRow(offering);
+    this.#assertDeclaredIssuer(offeringRow, issuer.publicHex);
     if (!Number.isInteger(level) || level < 2 || level > 4) {
       throw new Error('attestations are L2-L4; L1 issues only from recordTransaction');
     }
@@ -239,6 +241,16 @@ class Store {
     }
     if (offering !== receipt.offering) {
       throw new Error(`receipt is for ${receipt.offering}, not ${offering}: reviews bind to the exact offering-version (AT-12)`);
+    }
+    // Issuer binding (defense-in-depth against the audit's MAJOR finding): a
+    // receipt only gates a review if it was signed by the offering's DECLARED
+    // issuer. A validly-signed receipt from a stranger's own key — recorded
+    // against someone else's offering — must never blend into that offering's
+    // score. Enforced at issuance too; re-checked here so a receipt that
+    // somehow reached storage with the wrong issuer still cannot gate.
+    const bindingRow = this.#offeringRow(offering);
+    if (receipt.issuer !== bindingRow.issuer) {
+      throw new Error(`receipt issuer is not the declared issuer of ${offering}: only the provider of record can gate its reviews (issuer binding)`);
     }
     if (!Number.isInteger(overall) || overall < 1 || overall > 5) {
       throw new Error('overall must be an integer 1-5 (see DRIFT.md D-6)');
@@ -406,6 +418,15 @@ class Store {
     const row = this.db.prepare('SELECT * FROM offerings WHERE offering_id = ? AND version = ?').get(offeringId, version);
     if (!row) throw new Error(`unknown offering-version: ${offering}`);
     return row;
+  }
+
+  /** Only the offering's declared issuer (the provider of record, spec §2)
+   *  may mint receipts against it. Blocks a stranger from recording a fake
+   *  transaction on someone else's offering and reviewing it. */
+  #assertDeclaredIssuer(offeringRow, actingPublicHex) {
+    if (offeringRow.issuer !== `ed25519:${actingPublicHex}`) {
+      throw new Error(`only ${offeringRow.offering_id}@${offeringRow.version}'s declared issuer may mint receipts against it (issuer binding)`);
+    }
   }
 
   #receiptRow(receiptId) {

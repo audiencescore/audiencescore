@@ -38,3 +38,26 @@ unless you prefer otherwise.
 Spec v0.1 has no production deployment and no live data. Reports against
 the spec and reference implementation are still valuable — earlier is
 cheaper.
+
+## Known hardening notes (v0.2a reference implementation)
+
+The v0.2a implementation is a demonstrator, not production software. Two
+enforcement boundaries are worth naming explicitly, both raised by
+independent review:
+
+- **Issuer binding.** A receipt only counts if it was signed by the
+  offering's **declared** issuer (the provider of record). The reference
+  implementation enforces this at issuance, at review admission, and via a
+  health-check detector; see DRIFT.md D-12. This closes an audit finding where
+  a stranger's own-key receipt against another party's offering could
+  otherwise blend into that offering's score. A production deployment must
+  keep this binding in whatever write path it exposes — it is load-bearing.
+- **Append-only at the database role.** The store enforces append-only with
+  storage-engine triggers; SQLite has no user/role system, so a production
+  deployment on a server database must additionally run the application under
+  a role with no UPDATE/DELETE grants (DRIFT.md D-4).
+
+Neither the demonstrator nor this spec substitutes for the two standing
+release gates: an independent cryptographic review of the receipt scheme, and
+a per-vertical legal review, both required before any receipt signs a real
+transaction.
