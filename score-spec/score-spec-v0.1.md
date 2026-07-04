@@ -1,5 +1,10 @@
 # Score Specification v0.1
 
+> **Superseded.** This v0.1 document is retained verbatim for reproducibility
+> (see [GOVERNANCE.md](../GOVERNANCE.md)). The normative protocol is now
+> [spec v0.2a](../spec/SPEC-v0.2a.md); [DRIFT.md](../DRIFT.md) records how v0.1
+> was reconciled with it.
+
 Status: **draft**. Spec identifier: `audiencescore/score-spec@0.1`.
 
 The score is a **versioned, deterministic, pure function** over verdict

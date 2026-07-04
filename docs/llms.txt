@@ -27,11 +27,11 @@ may be sealed, under hash-commit-then-reveal accountability.
 - [Conformance](https://github.com/audiencescore/audiencescore/tree/main/conformance): signed test vectors, canonical serialization rules, reference verifier
 - [Acceptance tests](https://github.com/audiencescore/audiencescore/blob/main/tests/ACCEPTANCE-TESTS.md): AT-1..AT-25, all executable in CI
 - [Rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md): the v0.2 score math, normative
-- [Event spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
-- [Receipt spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
-- [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md): the v0.1 score math
+- [Event spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md) (superseded by spec v0.2a; retained): signed, hash-chained verdict events
+- [Receipt spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md) (superseded by spec v0.2a; retained): proof tiers and single-use review rights
+- [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md) (superseded by spec v0.2a; retained): the v0.1 score math
 - [Read API (draft OpenAPI)](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
-- Versioned permalink for this release: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
+- Historical permalink for the superseded v0.1.0 tag: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
 
 ## Reference implementation
 

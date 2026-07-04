@@ -71,9 +71,9 @@ cd reference-impl && npm ci && npm test
    derived from every offering they ever appeared in, forever. New offering IDs
    never reset history.
 
-For the v0.1 agent-flow walkthrough — how a complaint to your assistant becomes
-a signed, receipt-gated verdict without a form ever existing — see
-[How a review actually happens](docs/how-a-review-happens.md).
+For the superseded v0.1 agent-flow walkthrough — how a complaint to your
+assistant becomes a signed, receipt-gated verdict without a form ever
+existing — see [How a review actually happens](docs/how-a-review-happens.md).
 
 ## The attestation ladder
 
@@ -116,8 +116,8 @@ exists as an executable test in CI.
 | Path | Contents | License |
 |---|---|---|
 | [`/spec`](spec/) | Protocol spec v0.2a and its adversarial review | CC BY 4.0 |
-| [`/protocol`](protocol/) | v0.1 event and receipt wire specifications | CC BY 4.0 |
-| [`/score-spec`](score-spec/) | The versioned score math (v0.1 and rendering v1) | CC BY 4.0 |
+| [`/protocol`](protocol/) | Superseded v0.1 event and receipt wire specifications | CC BY 4.0 |
+| [`/score-spec`](score-spec/) | Rendering v1 score math plus superseded v0.1 math | CC BY 4.0 |
 | [`/conformance`](conformance/) | Signed test vectors and the reference verifier | CC BY 4.0 |
 | [`/tests`](tests/) | The acceptance-test register (AT-1..AT-25) | CC BY 4.0 |
 | [`/reference-impl`](reference-impl/) | Node.js reference implementation + MCP server | Apache-2.0 |

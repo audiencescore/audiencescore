@@ -7,6 +7,9 @@ production software. The v0.1 modules and demo remain dependency-free
 and exactly one audited, exact-pinned dependency, `@noble/hashes`, for the
 spec-mandated BLAKE3 holder binding.
 
+The normative protocol is [spec v0.2a](../spec/SPEC-v0.2a.md). The v0.1
+modules are superseded and retained for reproducibility.
+
 ## Run the demo
 
 ```sh
@@ -35,10 +38,10 @@ criterion in [/tests/ACCEPTANCE-TESTS.md](../tests/ACCEPTANCE-TESTS.md)
 
 | File | Implements |
 |---|---|
-| `src/crypto.js` | Ed25519 over canonical JSON, SHA-256 (v0.1 envelope) |
-| `src/events.js` | Event envelope, append-only hash-chained log ([event-spec](../protocol/event-spec.md)) |
-| `src/receipts.js` | v0.1 vendor receipts, single-use rights registry ([receipt-spec](../protocol/receipt-spec.md)) |
-| `src/score.js` | The v0.1 score function ([score-spec](../score-spec/score-spec-v0.1.md)) |
+| `src/crypto.js` | Ed25519 over canonical JSON, SHA-256 (superseded v0.1 envelope) |
+| `src/events.js` | Superseded v0.1 event envelope, append-only hash-chained log ([event-spec](../protocol/event-spec.md)) |
+| `src/receipts.js` | Superseded v0.1 vendor receipts, single-use rights registry ([receipt-spec](../protocol/receipt-spec.md)) |
+| `src/score.js` | Superseded v0.1 score function ([score-spec](../score-spec/score-spec-v0.1.md)) |
 | `src/mcp-server.js` | Minimal MCP (JSON-RPC 2.0 over stdio) server exposing `get_score` |
 | `src/v02/canonical.js` | as/0.2a canonical receipt serialization ([CANONICAL.md](../conformance/CANONICAL.md)) |
 | `src/v02/signing.js` | The receipt signature scheme behind one swappable interface (GATE-1) |

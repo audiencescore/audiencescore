@@ -1,5 +1,10 @@
 # Event Specification v0.1
 
+> **Superseded.** This v0.1 document is retained verbatim for reproducibility
+> (see [GOVERNANCE.md](../GOVERNANCE.md)). The normative protocol is now
+> [spec v0.2a](../spec/SPEC-v0.2a.md); [DRIFT.md](../DRIFT.md) records how v0.1
+> was reconciled with it.
+
 Status: **draft**. Spec identifier: `audiencescore/event@0.1`.
 Normative for the event log; the reference implementation in
 [`/reference-impl`](../reference-impl/) implements it.
