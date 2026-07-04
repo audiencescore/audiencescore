@@ -6,11 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-07-04
+
 Protocol spec v0.2 rev A, implemented. A strict generalization of v0.1
 (single level, single role, atomic unversioned offering is now the degenerate
-case). **Not a release:** two gates remain open — independent cryptographic
-review of the receipt scheme, and per-vertical legal review — see the README
-Status section.
+case). **Releasing the spec text does not close the release gates:** two
+gates remain open before any receipt signs a real transaction — independent
+cryptographic review of the receipt scheme, and per-vertical legal review —
+see the README Status section. No live data is being collected.
 
 ### Added
 
@@ -35,6 +40,17 @@ Status section.
   health-check register.
 - **DRIFT.md**: the plain-English register of every difference between v0.1
   reality and spec v0.2a, and how each was resolved.
+- **Agent discovery surface**: ARD `ai-catalog.json` describing the MCP
+  server, sharpened MCP server/tool discovery metadata, `glama.json`, and a
+  Dockerfile for registry introspection.
+- **Education issuer adapter demonstrator** and the draft education profile.
+
+### Fixed
+
+- **Receipts are bound to the offering's declared issuer** (independent
+  audit's MAJOR finding): a receipt signed by any key other than the
+  offering's declared issuer no longer verifies.
+- Pre-launch adversarial-review remediations (H-1/H-2/H-3 and mediums).
 
 ### Changed
 
@@ -45,6 +61,9 @@ Status section.
 - The reference implementation now carries exactly one runtime dependency,
   the audited `@noble/hashes` (BLAKE3), pinned exact with a committed
   lockfile.
+- Governance: no-CLA, open score math, and forkability are non-amendable.
+- All v0.1 documents now carry superseded notices pointing to spec v0.2a;
+  they are retained verbatim for reproducibility.
 
 ## [0.1.0] — 2026-07-02
 
