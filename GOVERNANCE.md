@@ -65,17 +65,67 @@ Standing constraints on the sealed layer:
 - Sealed detectors are operated server-side and never ship in any
   repository, release, or artifact.
 
-## 3. Amendment rules
+## 3. No capture: contribution terms and the right to fork
+
+This section is a **non-amendable** constraint (see §4). It fixes, at the
+constitutional level, that no single party — the founding team, any future
+maintainer, any steward, or any acquirer — can take this protocol private or
+privatize the community's contributions to it.
+
+**No CLA, no copyright assignment.** The project requires a Developer
+Certificate of Origin ([DCO](https://developercertificate.org/)) sign-off on
+every contribution — `git commit -s` — and nothing more. It does **not** use a
+Contributor License Agreement, and it does **not** take copyright assignment.
+Contributors keep the copyright in their own contributions; each contribution
+is licensed to everyone under this repository's stated licenses (Apache-2.0 for
+code, CC BY 4.0 for specifications, ODbL for the data commons). Because no
+party holds an assignment or a CLA's forward relicensing grant, **no party has
+the unilateral right to relicense this project under proprietary terms.** The
+power to "take it closed" does not exist here by construction, not by promise —
+the standard structural precondition for a hostile relicensing (a single owner
+of everyone's copyright) is absent on purpose.
+
+**The score math can never be closed.** This restates the §1 guarantee as a
+capture constraint: the event schema and signing rules, the append-only
+hash-chained log and every admitted event, the versioned score function and
+every parameter in it, and the moderation log are public and will never be
+closed, narrowed, or made proprietary. A score is a deterministic function over
+public signed events; there is no private scoring path any maintainer, operator,
+or steward may introduce. The only components that may ever be sealed are the
+admission-time anti-fraud detectors of §1–§2, under the accountability machinery
+defined there, and they never touch score computation.
+
+**Forkable by design.** Everything required to run this protocol and recompute
+every score — the spec, the reference code, the conformance vectors, and the
+score function — is published under the licenses above with no
+additional-permission gate. Anyone may fork the protocol, stand up an
+independent implementation, and mirror the data commons; the ODbL keeps any
+adapted database open in turn. The credible ability to fork is not a failure
+mode this project tolerates — it is a property it **guarantees**, because a
+trust protocol whose operator cannot be walked away from is not trustworthy. A
+fork is an exit, and the existence of that exit is what makes participation
+safe. The single thing a fork may not do is claim to *be* AudienceScore: the
+name and marks are governed separately (see [TRADEMARK.md](TRADEMARK.md)) so
+that "AudienceScore" keeps denoting one specific, conformant protocol — everyone
+may take the protocol; no one may take the name.
+
+## 4. Amendment rules
 
 - The "open forever" list in §1 may be extended, never narrowed.
 - The sealed zone is limited to admission detectors and may not be widened
   to any other component by any future decision of any maintainer,
   operator, or governing body.
+- **The §3 guarantees are non-amendable.** The no-CLA / no-copyright-assignment
+  / DCO-only contribution terms, the score-math-open-forever guarantee, and the
+  right to fork may be clarified or strengthened, but may never be weakened,
+  narrowed, or removed — by any maintainer, operator, steward, governing body,
+  or successor, and regardless of any change of control of the `audiencescore`
+  organization or its assets.
 - Changes to this document follow the RFC process in
   [CONTRIBUTING.md](CONTRIBUTING.md) and require explicit maintainer
   approval, recorded in the pull request history.
 
-## 4. Maintainers and trajectory
+## 5. Maintainers and trajectory
 
 The project is currently maintained by its founding team under the
 `audiencescore` GitHub organization. The intended trajectory, as the
