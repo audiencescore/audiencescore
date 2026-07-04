@@ -1,0 +1,47 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "AudienceScore",
+    "identifier": "did:web:audiencescore.org",
+    "documentationUrl": "https://github.com/audiencescore/audiencescore"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:audiencescore.org:server:audiencescore",
+      "displayName": "AudienceScore — verified-review trust scores",
+      "type": "application/mcp-server-card+json",
+      "url": "https://audiencescore.org/.well-known/mcp/server-card.json",
+      "description": "MCP server that returns a vendor's AudienceScore: the percent of verified thumbs-up across reviews each gated by cryptographic proof the reviewer really transacted with or participated in what they reviewed, with a Wilson 95% lower bound and sample size, as an Ed25519-signed manifest the caller can independently recompute from public data. A vendor with too few verified reviews returns a not-displayed manifest rather than a fabricated number.",
+      "capabilities": [
+        "get_score",
+        "VerifiedReviewTrustScore",
+        "ProofOfParticipationReviewLookup"
+      ],
+      "representativeQueries": [
+        "are this vendor's reviews real or fake",
+        "how trustworthy is this seller's rating",
+        "what percent of this course's reviews are cryptographically verified",
+        "show the proof-backed audience score for this vendor"
+      ],
+      "tags": [
+        "reviews",
+        "trust",
+        "reputation",
+        "verified-reviews",
+        "proof-of-purchase",
+        "mcp"
+      ],
+      "version": "0.1.0",
+      "updatedAt": "2026-07-04T00:00:00Z",
+      "metadata": {
+        "repository": "https://github.com/audiencescore/audiencescore",
+        "tool": "get_score",
+        "transport": "stdio",
+        "specStatus": "draft-v0.2a",
+        "hasLiveData": false,
+        "codeLicense": "Apache-2.0",
+        "specLicense": "CC-BY-4.0"
+      }
+    }
+  ]
+}
