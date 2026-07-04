@@ -4,11 +4,13 @@ There is no form. Nobody sits down to "write a review" in this protocol — no
 star box, no text field, no "rate your experience" email. **The form is dead.
 The agent is the input mechanism.**
 
-> **Status (v0.1):** this page describes the intended flow. The reference
-> implementation today verifies vendor-signed receipts and renders scores;
-> DKIM-email, card-link, and agentic-mandate proof adapters, and the public
-> moderation events referenced below, are specified but not yet built. They
-> are marked *(planned)* where they appear.
+> **Status (v0.1, superseded):** this page describes the intended v0.1 flow.
+> The normative protocol is now
+> [spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md).
+> The reference implementation today verifies vendor-signed receipts and
+> renders scores; DKIM-email, card-link, and agentic-mandate proof adapters,
+> and the public moderation events referenced below, are specified but not yet
+> built. They are marked *(planned)* where they appear.
 
 Here is the actual flow, end to end:
 
@@ -44,7 +46,9 @@ Here is the actual flow, end to end:
 
 6. **The score re-renders.** The vendor's audience score is a deterministic
    function over the log
-   ([score-spec](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md));
+   ([score-spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md),
+   superseded by
+   [rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md));
    the new verdict shifts it, and anyone can recompute the result to the
    decimal.
 

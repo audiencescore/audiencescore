@@ -35,9 +35,9 @@ unless you prefer otherwise.
 
 ## No live deployment yet
 
-Spec v0.1 has no production deployment and no live data. Reports against
-the spec and reference implementation are still valuable — earlier is
-cheaper.
+The superseded v0.1 spec and current v0.2a draft have no production
+deployment and no live data. Reports against the spec and reference
+implementation are still valuable — earlier is cheaper.
 
 ## Known hardening notes (v0.2a reference implementation)
 

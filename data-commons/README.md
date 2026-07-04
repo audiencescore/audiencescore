@@ -7,10 +7,11 @@ an open data commons under the [Open Database License
 dataset, and anyone redistributing an adapted database must share it alike
 and keep attribution.
 
-**Status: no live dataset exists yet.** Spec v0.1 precedes any production
-deployment. This directory currently holds the licensing terms and the
-mirroring design ([mirroring.md](mirroring.md)); mirror tooling lands here
-as the first deployment goes live.
+**Status: no live dataset exists yet.** The superseded v0.1 spec predates
+any production deployment; the normative protocol is now
+[spec v0.2a](../spec/SPEC-v0.2a.md). This directory currently holds the
+licensing terms and the mirroring design ([mirroring.md](mirroring.md));
+mirror tooling lands here as the first deployment goes live.
 
 The commons is what makes the no-pay-to-play guarantee enforceable rather
 than promised: because any party can mirror every event and recompute every

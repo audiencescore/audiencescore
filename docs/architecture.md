@@ -1,5 +1,11 @@
 # Architecture Overview
 
+> **Status.** This page describes the superseded v0.1 architecture. The
+> normative protocol is now
+> [spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md);
+> [rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md)
+> is the current score math.
+
 ## The pipeline
 
 ```
@@ -35,7 +41,9 @@ Four load-bearing decisions:
 
 4. **Verification without trust.** Score manifests are signed and carry the
    spec version plus a hash of the exact event set used
-   ([score-spec §7](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md#7-score-manifests)).
+   ([score-spec v0.1 §7](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md#7-score-manifests);
+   superseded by
+   [rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md)).
    The MCP read API returns these manifests, so a buying agent can verify a
    score end-to-end without trusting the server that computed it — and any
    mirror can prove an origin dishonest by recomputation. (The signature is
@@ -43,7 +51,7 @@ Four load-bearing decisions:
    rendering key through governance; the reference server uses an ephemeral
    per-process key purely for the demo.)
 
-## Trust boundary — what you verify vs. what you trust (v0.1)
+## Trust boundary — what you verify vs. what you trust (v0.1, superseded)
 
 Be exact about this, because the pitch is "verify, don't trust."
 
