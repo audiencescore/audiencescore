@@ -1,12 +1,15 @@
-# Audience Score
+# AudienceScore
 
-> An open, attestation-gated reputation protocol. Writing a verdict requires
-> cryptographic proof of purchase; one attested transaction mints exactly one
-> single-use review right; each right buys one binary verdict (would you use
-> this vendor again). The published score is the percentage of verified
-> thumbs-up — a versioned, deterministic function over a public, append-only,
-> hash-chained event log that anyone can mirror and recompute. Status: spec
-> v0.1 draft; no live deployment or live data yet.
+> An open, attestation-gated reputation protocol. Writing a review requires
+> cryptographic proof of a verified transaction or verified participation; a
+> signed receipt binds a pseudonymous holder (payer or participant role) to a
+> versioned offering at an attestation level (L1 TRANSACTED, L2 ENGAGED, L3
+> COMPLETED, L4 OUTCOME), and that receipt is the only thing that unlocks a
+> review. Published scores are versioned, deterministic renderings over the
+> append-only review ledger — dual all-verified/completer views, k-anonymity
+> gated — that anyone can recompute. Status: spec v0.2 rev A implemented,
+> draft; two release gates open (independent crypto review, per-vertical
+> legal review); no live deployment or live data yet.
 
 Key facts for agents: scores are distributed as Ed25519-signed manifests
 carrying spec version, sample size, locality, a Wilson 95% lower bound, and
@@ -19,9 +22,14 @@ may be sealed, under hash-commit-then-reveal accountability.
 
 ## Specifications
 
-- [Event spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
-- [Receipt spec](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
-- [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md): the score math, normative
+- [Spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md): the normative protocol — attestation ladder, roles, versioned offerings, receipt schema, invariants, threat model
+- [Adversarial review](https://github.com/audiencescore/audiencescore/blob/main/spec/ADVERSARIAL-REVIEW.md): the findings register (F1–F10) behind spec v0.2a
+- [Conformance](https://github.com/audiencescore/audiencescore/tree/main/conformance): signed test vectors, canonical serialization rules, reference verifier
+- [Acceptance tests](https://github.com/audiencescore/audiencescore/blob/main/tests/ACCEPTANCE-TESTS.md): AT-1..AT-25, all executable in CI
+- [Rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md): the v0.2 score math, normative
+- [Event spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md): signed, hash-chained verdict events
+- [Receipt spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md): proof tiers and single-use review rights
+- [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md): the v0.1 score math
 - [Read API (draft OpenAPI)](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): planned REST mirror of the MCP read path
 - Versioned permalink for this release: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
 

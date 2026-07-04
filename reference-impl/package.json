@@ -1,14 +1,17 @@
 {
   "name": "audiencescore-reference-impl",
-  "version": "0.1.0",
-  "description": "Reference implementation of the Audience Score protocol: attestation-gated verdicts, hash-chained event log, deterministic score rendering, MCP read API.",
+  "version": "0.2.0-a",
+  "description": "Reference implementation of the AudienceScore protocol: attestation-gated reviews, the v0.2a receipt schema and ladder, deterministic renderings, invariant health checks, hash-chained event log, MCP read API.",
   "license": "Apache-2.0",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.js test/v02/*.test.js",
     "demo": "node demo.js"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1"
   }
 }

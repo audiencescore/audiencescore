@@ -1,0 +1,245 @@
+{
+ "meta": {
+  "spec": "as/0.2a",
+  "warning": "TEST VECTORS. Fixed-seed keys. NEVER use in production.",
+  "canonicalization": "JSON sorted keys, separators ',' ':', UTF-8, exclude 'sig' and 'coattest'",
+  "holder_binding": "blake3(holder_pubkey_bytes || salt)",
+  "salt_hex": "61732d746573742d73616c742d444f2d4e4f542d5553452d494e2d50524f44"
+ },
+ "keys": {
+  "issuer": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+  "wrong_issuer": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394",
+  "platform": "ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1",
+  "holder_participant": "5c9c6df261c9cb840475776aaefcd944b405328fab28f9b3a95ef40490d3de84",
+  "holder_payer": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+ },
+ "offerings": {
+  "algebra2@v3": {
+   "components": {
+    "instructor": "ent_chen",
+    "curriculum": "ent_alg2",
+    "platform": "ent_outschool"
+   },
+   "price_cents": 24900
+  },
+  "widget@v1": {
+   "components": {
+    "product": "ent_widget"
+   },
+   "price_cents": 1299
+  },
+  "freecourse@v1": {
+   "components": {
+    "curriculum": "ent_freecurr"
+   },
+   "price_cents": 0
+  }
+ },
+ "receipts": [
+  {
+   "name": "valid_l1_participant_coattested",
+   "expect": "sig_valid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-001",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "algebra2@v3",
+    "level": 1,
+    "event": "enrolled",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": null,
+    "sig": "d4b12413996ccfceac45f47d7c015d8ab9cc5b108200f9d2adda18559f1d92352130f4e740cfc6a6f05eb928e9bbac6272b8d7bab2c6bb6680f4eb24abea6a02",
+    "coattest": [
+     "ed25519:ff07f7a9519333ceca0bdeee393a28ba84aba855b94f2ff2cb36b22b712e25db8b5e39c5e8559fe9be9fd8b0fdbc3258628abae09c543cfd6f8d3ed2b114cb0d"
+    ]
+   }
+  },
+  {
+   "name": "valid_l1_payer",
+   "expect": "sig_valid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-002",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "0ce9419e9233a39c9256ece0b13caf5403f38469b7cc398814753fffb1006cbd",
+    "role": "payer",
+    "offering": "algebra2@v3",
+    "level": 1,
+    "event": "paid",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": null,
+    "sig": "cab3a810f474df7280614531573e025d537516447d49a5cfb14c6ecb9018c4a18158c193069dae733bdf28888224801faf14cfe5ad46f48a997f60fffe975b01",
+    "coattest": []
+   }
+  },
+  {
+   "name": "valid_l2_free_offering_no_l1",
+   "expect": "sig_valid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-003",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "freecourse@v1",
+    "level": 2,
+    "event": "participated",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": null,
+    "sig": "6b1595b9b7638924954dd8a7817739d3805b438f538c5a0d1af3c802432490513503f30a0dba057d4bb71ba21f832967fdef74ea5679f9332aae70d2eb92bd02",
+    "coattest": []
+   }
+  },
+  {
+   "name": "chain_l1_to_l2",
+   "expect": "sig_valid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-004",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "algebra2@v3",
+    "level": 2,
+    "event": "participated",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": "as-test-rcpt-001",
+    "sig": "ddaecad739222847e4c3d396f9ebd2492a57855574470de8de048879ef7f827a92baad7206c5fba50144d134e4a8fda4b398ef92e5aa134fafd8bd26bcf2740a",
+    "coattest": []
+   }
+  },
+  {
+   "name": "chain_l2_to_l3",
+   "expect": "sig_valid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-005",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "algebra2@v3",
+    "level": 3,
+    "event": "completed",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": "as-test-rcpt-004",
+    "sig": "5b334318127d2aba794c8f4977dae874e871e84d77bae1f0b0177071b69a6e8341347d2aeb2c84bcfec6d9938214a93d2535a3836253d9110f032cebc3a4eb0e",
+    "coattest": []
+   }
+  },
+  {
+   "name": "tampered_level_after_signing",
+   "expect": "sig_invalid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-006",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "algebra2@v3",
+    "level": 3,
+    "event": "enrolled",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": null,
+    "sig": "d4b12413996ccfceac45f47d7c015d8ab9cc5b108200f9d2adda18559f1d92352130f4e740cfc6a6f05eb928e9bbac6272b8d7bab2c6bb6680f4eb24abea6a02",
+    "coattest": [
+     "ed25519:ff07f7a9519333ceca0bdeee393a28ba84aba855b94f2ff2cb36b22b712e25db8b5e39c5e8559fe9be9fd8b0fdbc3258628abae09c543cfd6f8d3ed2b114cb0d"
+    ]
+   }
+  },
+  {
+   "name": "wrong_key_claims_issuer",
+   "expect": "sig_invalid",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-007",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "widget@v1",
+    "level": 1,
+    "event": "purchased",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": null,
+    "sig": "17d64c60273023fd4085733a3a84e62d378b145429c8e4a0d2e71e804e8c4e4b5a9325e5e7f68bd71bfc65b1991dd70011c7da46fef3bbeca2868304e606ef04",
+    "coattest": []
+   }
+  },
+  {
+   "name": "descending_chain_l3_to_l2",
+   "expect": "violates:I-3",
+   "receipt": {
+    "spec": "as/0.2a",
+    "receipt_id": "as-test-rcpt-008",
+    "issuer": "ed25519:8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "holder": "7d24f319bce329eec39f6f413937ce315c2d26df584f3d2606d7e12681120874",
+    "role": "participant",
+    "offering": "algebra2@v3",
+    "level": 2,
+    "event": "participated",
+    "issued_at": "2026-07-04T12:00:00Z",
+    "prev": "as-test-rcpt-005",
+    "sig": "440d12a9afd16245d1603eb12d13f4af7ecf9ee6ffe2d014f1fab9eacbeb160c744354b08a85af6992a5946e4b8703466ac0206886b31b32d7d31f755d9d7d0a",
+    "coattest": []
+   }
+  }
+ ],
+ "reviews": [
+  {
+   "name": "valid_review_with_facets",
+   "expect": "valid",
+   "review": {
+    "receipt_id": "as-test-rcpt-005",
+    "overall": 5,
+    "facets": {
+     "ent_chen": 5,
+     "ent_alg2": 4
+    },
+    "text": "Rigorous and fair."
+   }
+  },
+  {
+   "name": "orphan_review",
+   "expect": "violates:I-1",
+   "review": {
+    "receipt_id": "as-test-rcpt-MISSING",
+    "overall": 1,
+    "facets": {},
+    "text": "ghost"
+   }
+  },
+  {
+   "name": "facet_on_undeclared_component",
+   "expect": "violates:I-6",
+   "review": {
+    "receipt_id": "as-test-rcpt-001",
+    "overall": 3,
+    "facets": {
+     "ent_notdeclared": 2
+    },
+    "text": ""
+   }
+  },
+  {
+   "name": "payer_with_facets",
+   "expect": "violates:I-6-role",
+   "review": {
+    "receipt_id": "as-test-rcpt-002",
+    "overall": 4,
+    "facets": {
+     "ent_chen": 4
+    },
+    "text": ""
+   }
+  }
+ ],
+ "reconciliation": {
+  "name": "issuance_exceeds_transactions",
+  "expect": "violates:I-2",
+  "issuer": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+  "offering": "algebra2@v3",
+  "declared_transactions": 100,
+  "l1_receipts_issued": 103
+ }
+}

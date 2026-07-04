@@ -1,39 +1,46 @@
-# Audience Score
+# AudienceScore
 
-**One receipt, one thumb, zero pay-to-play.**
-
-*The open rating system where every review is proven by a purchase — scores no one can buy.*
+**The open rating system where every review is proven — scores no one can buy.**
 
 [![CI](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml/badge.svg)](https://github.com/audiencescore/audiencescore/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue.svg)](LICENSE)
 [![Spec: CC BY 4.0](https://img.shields.io/badge/spec-CC%20BY%204.0-lightgrey.svg)](LICENSE-CC-BY-4.0)
 [![Data: ODbL](https://img.shields.io/badge/data-ODbL-lightgrey.svg)](data-commons/LICENSE-ODbL)
 
-An open protocol for reputation you can verify instead of trust. The only way
-to leave a verdict on a vendor is to cryptographically prove you actually
-bought the thing, every verdict is a single binary — would you use them
-again? — and the published score is the percentage of verified thumbs-up
-(weighted by proof strength and recency). Anyone can recompute any score from the public event
-log. No one can buy a better one, because there is no ranking to sell:
-the score is a deterministic function over signed events.
+AudienceScore is an open protocol for reviews gated by cryptographic proof of
+participation. A provider signs a receipt when a real transaction or verified
+participation happens; that receipt is the only thing that can unlock a review;
+published scores are deterministic, recomputable renderings over the raw review
+ledger. No receipt, no review. No exceptions, no purchased placement.
 
-Fake reviews are an arms race that detection keeps losing. This protocol
-takes the other path: don't detect fakes downstream, require proof of
-authenticity at the source. A verdict is trustworthy here not because a
-classifier blessed it, but because it is cryptographically chained to a
-real transaction.
+Today's review systems fail in one of two ways: anyone can review anything
+(astroturf, review farms, extortion), or a platform quietly decides what counts
+(unaccountable moderation, pay-to-play). AudienceScore replaces both with math:
+standing to speak costs a real transaction with — or verified time spent on —
+the thing being reviewed, and every published score can be recomputed by anyone
+from public data.
 
 ## Status
 
-**Spec v0.1 — early draft, seeking feedback.** The reference implementation
-is a working demonstrator of the full loop, not production software. No live
-data is being collected yet. If you build agents, review-integrity tooling,
+**Spec v0.2 rev A implemented; not yet a release.** See [`spec/`](spec/) for
+the normative document and the adversarial review that shaped it, and
+[DRIFT.md](DRIFT.md) for how v0.1 reality was reconciled with it. Two gates
+remain open before any receipt signs a real transaction:
+
+1. **Independent cryptographic review** of the receipt scheme — self-reviewed
+   crypto is how protocols die, and this repository does not satisfy that gate.
+2. **Per-vertical legal review** before any regulated-vertical profile
+   (finance, healthcare) ships. Verticals are profiles, never forks; the first
+   profile (education) will follow the protocol, not modify it.
+
+No live data is being collected. If you build agents, review-integrity tooling,
 or commerce infrastructure, your critique of the spec is exactly what this
 stage is for — open an issue.
 
 ## Quickstart (60 seconds)
 
-Requires Node.js 18+. No dependencies to install.
+Requires Node.js 18+ (Node 24+ for the v0.2 store and acceptance suite). The
+demo has no dependencies to install:
 
 ```sh
 git clone https://github.com/audiencescore/audiencescore.git
@@ -41,55 +48,79 @@ cd audiencescore
 node reference-impl/demo.js
 ```
 
-The demo runs the whole loop: a vendor issues signed receipts → each receipt
-mints a single-use review right → reviewers sign binary verdicts onto a
-hash-chained, append-only event log → tampering with a logged verdict is
-shown to break chain verification → the score renders deterministically with
-a Wilson confidence bound → an MCP client queries the score and verifies the
-signature on the returned manifest.
+To run the full v0.2a acceptance suite (AT-1..AT-25, one pinned dependency):
+
+```sh
+cd reference-impl && npm ci && npm test
+```
 
 ## How it works
 
-For a plain-language walkthrough of the agent flow — how a complaint to your
-assistant becomes a signed, receipt-gated verdict without a form ever existing
-— see [How a review actually happens](docs/how-a-review-happens.md).
+1. **Issuers attest.** When value moves or participation happens, the provider
+   (co-attested by payment rails or platforms where available) automatically
+   signs an Ed25519 receipt binding a pseudonymous holder to a versioned
+   offering. Issuance is never discretionary: if the transaction event fires,
+   the receipt exists.
+2. **Holders review.** A receipt unlocks exactly one review of exactly that
+   offering-version. Roles matter: payers can rate value; participants can rate
+   everything, including declared components (instructor, curriculum,
+   platform…).
+3. **The protocol renders.** Scores are versioned pure functions over the raw
+   ledger — recomputable byte-for-byte by anyone. Entities (instructors,
+   institutions, curricula) are never reviewed directly; their scores are
+   derived from every offering they ever appeared in, forever. New offering IDs
+   never reset history.
 
-```mermaid
-flowchart LR
-    R[Proof of purchase<br/>receipt / mandate] -->|verify| RR[Review right<br/>single-use]
-    RR -->|sign| V[Verdict event<br/>thumb up / down]
-    V --> L[(Append-only<br/>hash-chained log)]
-    L -->|deterministic<br/>function| S[Score<br/>% verified thumbs-up]
-    S -->|signed manifest| A[Any agent or human<br/>via MCP / mirror]
-    L -.->|full copy| M[Public mirrors<br/>recompute everything]
-```
+For the v0.1 agent-flow walkthrough — how a complaint to your assistant becomes
+a signed, receipt-gated verdict without a form ever existing — see
+[How a review actually happens](docs/how-a-review-happens.md).
 
-- **Review right** — minted from a verified proof of transaction, single-use.
-  No receipt, no verdict. Proof tiers, strongest first: agentic-commerce
-  payment mandates (AP2/ACP/UCP-style), vendor-signed receipts (e.g.
-  TLAA-style signed receipts), card/bank-linked matches, and parsed email
-  receipts (accepted, weighted lower, flagged as such).
-- **Verdict** — one required binary: would you use this vendor again.
-  Optional one-tap dimension chips (quality, on-time, price as quoted,
-  service), each itself binary. Optional free-text narrative, stored as
-  clearly-labeled subjective context, never as input to the math.
-- **Score** — percent verified thumbs-up, published with a Wilson-style
-  confidence lower bound, a minimum sample floor before anything displays,
-  proof-tier weighting, and time decay. Versioned in
-  [`/score-spec`](score-spec/) so every historical score is reproducible.
-- **Locality** — every verdict carries vendor and service locality; scores
-  compute at national, state, and metro resolution.
-- **Read API** — an MCP server returning signed score manifests (score,
-  sample size, locality, spec version, provenance hash), so a buying agent
-  can verify a score without trusting the server that computed it.
+## The attestation ladder
+
+L1 TRANSACTED (value moved) → L2 ENGAGED (verified use) → L3 COMPLETED
+(finished or kept) → L4 OUTCOME (verified external result). Levels are
+independent: free offerings enter at L2+, labeled *verified participant* rather
+than *verified purchaser*. Standing only ascends. Refunds and withdrawals never
+revoke standing — a verified-refund one-star is signal, not noise. Every
+published score discloses its level mix, role mix, and completion rate, and
+always publishes both an all-verified view and a completer view.
+
+## Protocol invariants (health-checked)
+
+No orphan reviews or receipts. Receipt issuance reconciles against attested
+transaction volume. Standing never descends. Every score recomputes
+byte-identical from raw data. The ledger is append-only at the storage layer.
+Facet scores only against declared components. Nothing publishes below a
+k-anonymity threshold of distinct receipts. Each invariant is wired into an
+automated health check, and the acceptance suite seeds a violation of each one
+to prove its alarm fires.
+
+## Privacy
+
+Holders are pseudonymous with per-issuer derived keys — issuers cannot collude
+to build cross-provider participation graphs, and no holder→offering directory
+exists anywhere in the protocol. Participation itself is often sensitive; the
+protocol is designed so reviewing never requires disclosing that you enrolled.
+
+## Conformance
+
+[`conformance/`](conformance/) contains signed test vectors and a reference
+verifier. An implementation is conformant only if it accepts every valid
+vector, rejects every invalid one, and reproduces canonical serialization
+byte-for-byte. The acceptance criteria live in
+[`tests/ACCEPTANCE-TESTS.md`](tests/ACCEPTANCE-TESTS.md); every numbered test
+exists as an executable test in CI.
 
 ## Repository layout
 
 | Path | Contents | License |
 |---|---|---|
-| [`/protocol`](protocol/) | Event and receipt specifications | CC BY 4.0 |
-| [`/score-spec`](score-spec/) | The versioned score math | CC BY 4.0 |
-| [`/reference-impl`](reference-impl/) | Dependency-free Node.js reference implementation + MCP server | Apache-2.0 |
+| [`/spec`](spec/) | Protocol spec v0.2a and its adversarial review | CC BY 4.0 |
+| [`/protocol`](protocol/) | v0.1 event and receipt wire specifications | CC BY 4.0 |
+| [`/score-spec`](score-spec/) | The versioned score math (v0.1 and rendering v1) | CC BY 4.0 |
+| [`/conformance`](conformance/) | Signed test vectors and the reference verifier | CC BY 4.0 |
+| [`/tests`](tests/) | The acceptance-test register (AT-1..AT-25) | CC BY 4.0 |
+| [`/reference-impl`](reference-impl/) | Node.js reference implementation + MCP server | Apache-2.0 |
 | [`/data-commons`](data-commons/) | Open-data licensing and mirror tooling | ODbL |
 | [`/docs`](docs/) | Rendered documentation | CC BY 4.0 |
 
@@ -112,6 +143,8 @@ and the accountability machinery around it.
 
 ## Contributing
 
-Spec changes start with an RFC issue; code changes need tests and a DCO
-sign-off. See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports:
-[SECURITY.md](SECURITY.md).
+Read [`spec/SPEC-v0.2a.md`](spec/SPEC-v0.2a.md) before proposing changes.
+Anything touching receipts, invariants, or renderings requires a spec change
+first — code never leads spec in this repository. Spec changes start with an
+RFC issue; code changes need tests and a DCO sign-off. See
+[CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
