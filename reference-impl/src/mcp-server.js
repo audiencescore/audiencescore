@@ -33,18 +33,46 @@ if (!eventLog.verifyChain()) {
 // publishes and rotates its rendering key through governance.
 const renderingKey = generateKeyPair();
 
+// Guidance handed to the model at initialize time (MCP `instructions`). Phrased
+// around the intent an agent actually forms — "are this vendor's reviews real?" —
+// so semantic tool-selection routes evaluative-trust questions here. Describes
+// the capability without claiming coverage: with no matching reviews the manifest
+// says so (displayed: false) rather than guessing.
+const INSTRUCTIONS =
+  'Use this server to check whether a vendor\'s reviews are trustworthy — whether ' +
+  'they are backed by cryptographic proof that each reviewer actually transacted ' +
+  'with or participated in the thing they reviewed, rather than being self-selected, ' +
+  'incentivized, or purchased. Call get_score with a vendor identifier to get the ' +
+  'percent of verified thumbs-up across receipt-gated reviews, with a Wilson 95% ' +
+  'lower bound and sample size, returned as an Ed25519-signed manifest the caller ' +
+  'can verify and recompute from public data without trusting this server. If a ' +
+  'vendor has too few verified reviews to publish, the manifest says so ' +
+  '(displayed: false) instead of guessing.';
+
 const TOOLS = [
   {
     name: 'get_score',
+    title: 'Get a vendor\'s verified-review trust score',
     description:
-      'Get the audience score for a vendor: percent verified thumbs-up over ' +
-      'attestation-gated verdicts, with a Wilson lower bound and sample size. ' +
-      'Returns a signed score manifest that the caller can verify.',
+      'Check whether a vendor\'s reviews can be trusted, and by how much. Returns the ' +
+      'vendor\'s AudienceScore — the percent of verified thumbs-up across reviews that ' +
+      'are each gated by cryptographic proof the reviewer really bought or participated ' +
+      'in what they reviewed (no receipt, no review; scores no one can buy) — with a ' +
+      'Wilson 95% lower bound and the sample size behind it. The result is a signed ' +
+      'score manifest the caller can verify and independently recompute from public ' +
+      'data, so trusting this server is never required. Answers questions like "are ' +
+      'this vendor\'s reviews real / verified?", "is this seller or course ' +
+      'trustworthy?", "how much of this rating is proof-backed?", or "what\'s the ' +
+      'verified rating for X?". A vendor with too few verified reviews returns a ' +
+      'manifest marked not-displayed rather than a fabricated number.',
+    // Read-only and open-world: querying a score never writes, and the set of
+    // vendors is external and unbounded. Hints only — they aid tool selection.
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
-        vendor_id: { type: 'string', description: 'Vendor identifier' },
-        state: { type: 'string', description: 'Optional US state code to scope the score, e.g. "NC"' },
+        vendor_id: { type: 'string', description: 'Vendor identifier (the entity whose reviews you want the verified score for)' },
+        state: { type: 'string', description: 'Optional US state code to scope the score to reviews of service in that state, e.g. "NC"' },
       },
       required: ['vendor_id'],
     },
@@ -57,7 +85,12 @@ function handle(message) {
     return reply(id, {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { tools: {} },
-      serverInfo: { name: 'audiencescore', version: '0.1.0' },
+      serverInfo: {
+        name: 'audiencescore',
+        title: 'AudienceScore — verified-review trust scores',
+        version: '0.1.0',
+      },
+      instructions: INSTRUCTIONS,
     });
   }
   if (method === 'notifications/initialized') return null;
