@@ -1,8 +1,11 @@
 # Reference Implementation
 
-A dependency-free Node.js (18+) implementation of the protocol and score
-spec, licensed Apache-2.0. It is a demonstrator and executable
-specification — not production software.
+A Node.js implementation of the protocol and score specs, licensed
+Apache-2.0. It is a demonstrator and executable specification — not
+production software. The v0.1 modules and demo remain dependency-free
+(Node 18+); the v0.2a modules need Node 24+ (for the built-in `node:sqlite`)
+and exactly one audited, exact-pinned dependency, `@noble/hashes`, for the
+spec-mandated BLAKE3 holder binding.
 
 ## Run the demo
 
@@ -10,7 +13,7 @@ specification — not production software.
 node reference-impl/demo.js
 ```
 
-Shows the full loop: signed receipts → single-use review rights → signed
+Shows the v0.1 loop: signed receipts → single-use review rights → signed
 verdict events on a hash-chained log → tamper detection → deterministic
 score rendering → an MCP query returning a signed score manifest, verified
 client-side.
@@ -18,18 +21,32 @@ client-side.
 ## Run the tests
 
 ```sh
-node --test reference-impl/test/*.test.js
+cd reference-impl
+npm ci
+npm test
 ```
+
+Runs the v0.1 unit tests plus the v0.2a acceptance suite — every numbered
+criterion in [/tests/ACCEPTANCE-TESTS.md](../tests/ACCEPTANCE-TESTS.md)
+(AT-1..AT-25), driven against the signed conformance vectors in
+[/conformance](../conformance/).
 
 ## Layout
 
 | File | Implements |
 |---|---|
-| `src/crypto.js` | Ed25519 over canonical JSON, SHA-256 |
+| `src/crypto.js` | Ed25519 over canonical JSON, SHA-256 (v0.1 envelope) |
 | `src/events.js` | Event envelope, append-only hash-chained log ([event-spec](../protocol/event-spec.md)) |
-| `src/receipts.js` | Vendor receipts, single-use rights registry ([receipt-spec](../protocol/receipt-spec.md)) |
+| `src/receipts.js` | v0.1 vendor receipts, single-use rights registry ([receipt-spec](../protocol/receipt-spec.md)) |
 | `src/score.js` | The v0.1 score function ([score-spec](../score-spec/score-spec-v0.1.md)) |
 | `src/mcp-server.js` | Minimal MCP (JSON-RPC 2.0 over stdio) server exposing `get_score` |
+| `src/v02/canonical.js` | as/0.2a canonical receipt serialization ([CANONICAL.md](../conformance/CANONICAL.md)) |
+| `src/v02/signing.js` | The receipt signature scheme behind one swappable interface (GATE-1) |
+| `src/v02/holder.js` | Per-issuer derived holder keys + BLAKE3 bindings (spec §7) |
+| `src/v02/receipts.js` | as/0.2a receipts, the attestation ladder, monotonic standing (spec §3–4) |
+| `src/v02/store.js` | SQLite store: append-only enforced in the engine, automatic L1 issuance, refusal events |
+| `src/v02/rendering.js` | Rendering v1: dual views, version scoping, k-gating ([rendering-v1](../score-spec/rendering-v1.md)) |
+| `src/v02/invariants.js` | The I-1..I-7 health-check register (spec §6) |
 
 ## Query it from an MCP client
 

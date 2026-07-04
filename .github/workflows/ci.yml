@@ -10,26 +10,46 @@ permissions:
 
 jobs:
   test:
-    name: Lint, test, and run the demo
+    name: Lint, test, conformance, and demo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          # Node 24+: the v0.2 store uses the built-in node:sqlite module.
+          node-version: 24
+
+      - name: Install reference-impl dependencies (lockfile-exact)
+        run: npm ci
+        working-directory: reference-impl
 
       - name: Syntax check
         run: |
-          for f in reference-impl/src/*.js reference-impl/demo.js reference-impl/test/*.js; do
+          for f in reference-impl/src/*.js reference-impl/src/v02/*.js reference-impl/demo.js reference-impl/test/*.js reference-impl/test/v02/*.js; do
             node --check "$f"
           done
 
       - name: Check docs links
         run: node .github/scripts/check-links.js
 
-      - name: Unit tests
-        run: node --test reference-impl/test/*.test.js
+      - name: Unit and acceptance tests (v0.1 suite + AT-1..AT-25)
+        run: node --test reference-impl/test/*.test.js reference-impl/test/v02/*.test.js
 
       - name: End-to-end demo
         run: node reference-impl/demo.js
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install conformance verifier dependencies
+        run: pip install -r conformance/requirements.txt
+
+      - name: Reference conformance vectors (16 expectations)
+        run: python verify_vectors.py
+        working-directory: conformance
+
+      - name: Canonical-bytes fixture matches the reference (AT-4 honesty check)
+        run: python gen_canonical_fixture.py --check
+        working-directory: conformance

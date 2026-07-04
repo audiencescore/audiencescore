@@ -14,9 +14,11 @@ valuable contribution right now.
 ## Pull requests
 
 - Keep PRs focused; one logical change each.
-- Code changes need tests (`node --test reference-impl/test/*.test.js`
-  must pass) and no new dependencies without prior discussion — the
-  reference implementation is deliberately dependency-free.
+- Code changes need tests (`npm test` inside `reference-impl/` — the v0.1
+  suite plus the v0.2a acceptance tests — must pass) and no new dependencies
+  without prior discussion. The reference implementation deliberately carries
+  exactly one audited, exact-pinned dependency (`@noble/hashes`, for the
+  spec-mandated BLAKE3); the bar for adding anything else is an RFC.
 - Use [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `docs:`, `spec:` …).
 - Sign your commits (the repository requires verified signatures on
