@@ -1,0 +1,13 @@
+{
+  "name": "audiencescore-mcp",
+  "version": "0.2.0",
+  "description": "Connect any MCP client to AudienceScore — verified-review trust scores gated by cryptographic proof of purchase. Stdio bridge to the hosted read API.",
+  "bin": { "audiencescore-mcp": "index.js" },
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "files": ["index.js", "README.md"],
+  "keywords": ["mcp", "model-context-protocol", "reviews", "reputation", "audiencescore", "trust", "verified-reviews"],
+  "homepage": "https://github.com/audiencescore/audiencescore",
+  "repository": { "type": "git", "url": "git+https://github.com/audiencescore/audiencescore.git", "directory": "clients/mcp" },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.audiencescore/audiencescore",
+  "description": "Verified-review trust scores gated by cryptographic proof of purchase. get_score returns an Ed25519-signed manifest anyone can verify and recompute from public data — scores no one can buy.",
+  "version": "0.2.0",
+  "repository": {
+    "url": "https://github.com/audiencescore/audiencescore",
+    "source": "github"
+  },
+  "websiteUrl": "https://audiencescore.org",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://audiencescore-mcp.vercel.app/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "audiencescore-mcp",
+      "version": "0.2.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}
