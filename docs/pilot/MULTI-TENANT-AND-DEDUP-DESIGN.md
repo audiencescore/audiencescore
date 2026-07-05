@@ -142,12 +142,20 @@ On each `/v1/transactions`:
    mint-or-corroborate; `canonical-txn.js`; `create-partner`/`link-issuer` admin commands.
 2. **[DONE]** Manual issuance and the Stripe webhook handler both refactored to producers of the
    single `ingestTransaction` spine — every source shares one dedup path.
-3. Platform bulk-merchant provisioning (OAuth callback) + custodial key backend swapped from
-   PEM-on-disk to KMS/secure-enclave (Ed25519 → enclave path).
-4. QuickBooks and Square connectors as additional producers (extends the proven cross-source dedup).
-5. **[DONE]** `test/pilot/ingest.test.js`: same sale from two/three partners → one receipt + one
-   review-right + one delivery + corroborations; corroboration-signature verification; late-email
-   delivery-once; unlinked-partner refusal; reversal; endpoint auth. 75/75 suite green.
+3. **[DONE]** Bulk merchant provisioning (`provisionMerchants` + `POST /v1/partners/provision` +
+   the `provision-merchants` admin command): one platform call creates and links every connected
+   merchant. The OAuth redirect/callback that feeds it its roster, and swapping the custodial key
+   backend from PEM-on-disk to KMS/secure-enclave (Ed25519 → enclave path), remain deployment work.
+4. **[DONE]** Square and QuickBooks connectors (`square.js`, `quickbooks.js`) as producers of the
+   spine, each verifying the provider's own webhook signature. Square normalizes from the webhook
+   directly; QuickBooks carries only entity ids, so its handler enriches through an injected QBO-API
+   call before ingesting — and reports the originating rail id (Stripe/Square) so an accounting
+   record de-duplicates against the payment the rail already minted.
+5. **[DONE]** `test/pilot/ingest.test.js` + `test/pilot/connectors.test.js`: same sale from
+   multiple partners/connectors → one receipt + one review-right + one delivery + corroborations;
+   corroboration-signature verification; late-email delivery-once; unlinked-partner refusal;
+   reversal; endpoint auth; webhook signature rejection; cross-connector dedup. 79/79 suite green.
 
-The spine (1, 2, 5) is built and tested; 3 and 4 are additive producers/backends that plug into it
-without changing the core — which is the point of building it right the first time.
+The spine and its producers are built and tested. What remains is deployment work that plugs into
+the same core without changing it — the OAuth redirect flows and the KMS/enclave key backend —
+which is the point of building it right the first time.

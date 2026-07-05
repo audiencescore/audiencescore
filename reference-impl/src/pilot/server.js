@@ -149,6 +149,24 @@ function createServer(runtime = new PilotRuntime()) {
         const raw = await readBody(req);
         return json(res, 200, await runtime.handleStripeWebhook(raw, req.headers['stripe-signature']));
       }
+      if (req.method === 'POST' && url.pathname === '/v1/square/webhook') {
+        const raw = await readBody(req);
+        return json(res, 200, await runtime.handleSquareWebhook(raw, req.headers['x-square-hmacsha256-signature']));
+      }
+      if (req.method === 'POST' && url.pathname === '/v1/quickbooks/webhook') {
+        const raw = await readBody(req);
+        return json(res, 200, await runtime.handleQuickBooksWebhook(raw, req.headers['intuit-signature']));
+      }
+      if (req.method === 'POST' && url.pathname === '/v1/partners/provision') {
+        let partner;
+        try {
+          partner = runtime.authenticatePartner(req.headers['x-as-partner-id'], req.headers['x-as-partner-secret']);
+        } catch {
+          return json(res, 401, { error: 'partner authentication failed', env: 'pilot' });
+        }
+        const body = JSON.parse(await readBody(req));
+        return json(res, 200, runtime.provisionMerchants(partner.partner_id, body.merchants ?? []));
+      }
       // Platform / protocol / merchant direct ingestion. One rail for every
       // partner; the dedup layer decides mint-vs-corroborate. Auth is a
       // per-partner shared secret for the pilot; production uses signed

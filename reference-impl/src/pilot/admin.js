@@ -111,6 +111,12 @@ async function main() {
       return;
     }
 
+    if (command === 'provision-merchants') {
+      const merchants = JSON.parse(requireArg(args, 'merchantsJson'));
+      console.log(JSON.stringify(runtime.provisionMerchants(requireArg(args, 'partnerId'), merchants), null, 2));
+      return;
+    }
+
     if (command === 'issue-manual') {
       const result = await runtime.issueReceipt({
         issuerId: requireArg(args, 'issuerId'),

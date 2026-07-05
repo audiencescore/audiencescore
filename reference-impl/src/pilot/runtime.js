@@ -14,6 +14,8 @@ const { loadOrCreatePayloadKey, createIssuerKey, loadIssuerKey, createPartnerKey
 const { canonicalTxnKey } = require('./canonical-txn');
 const { deliverReceiptEmail } = require('./email');
 const { verifyStripeWebhook, eventToTransaction } = require('./stripe');
+const { verifySquareWebhook, eventToTransaction: squareEventToTransaction } = require('./square');
+const { verifyQuickBooksWebhook, paymentNotifications } = require('./quickbooks');
 
 const PILOT_ENV = 'pilot';
 
@@ -138,6 +140,12 @@ function defaultConfig(overrides = {}) {
     smtpUser: overrides.smtpUser || process.env.AUDIENCESCORE_SMTP_USER,
     smtpPassword: overrides.smtpPassword || process.env.AUDIENCESCORE_SMTP_PASSWORD,
     stripeWebhookSecrets: overrides.stripeWebhookSecrets || parseJsonEnv(process.env.AUDIENCESCORE_STRIPE_WEBHOOK_SECRETS_JSON, {}),
+    squareSignatureKey: overrides.squareSignatureKey || process.env.AUDIENCESCORE_SQUARE_SIGNATURE_KEY,
+    squareNotificationUrl: overrides.squareNotificationUrl || process.env.AUDIENCESCORE_SQUARE_NOTIFICATION_URL,
+    squarePartnerId: overrides.squarePartnerId || process.env.AUDIENCESCORE_SQUARE_PARTNER_ID || 'square',
+    quickbooksVerifierToken: overrides.quickbooksVerifierToken || process.env.AUDIENCESCORE_QUICKBOOKS_VERIFIER_TOKEN,
+    quickbooksPartnerId: overrides.quickbooksPartnerId || process.env.AUDIENCESCORE_QUICKBOOKS_PARTNER_ID || 'quickbooks',
+    quickbooksEnrich: overrides.quickbooksEnrich || null,
     port: Number(overrides.port || process.env.PORT || 8080),
   };
 }
@@ -450,7 +458,7 @@ class PilotRuntime {
   async handleStripeWebhook(rawBody, signatureHeader) {
     const event = JSON.parse(rawBody);
     if (!['checkout.session.completed', 'invoice.paid'].includes(event.type)) {
-      this.recordWebhook(event, null, 'ignored');
+      this.recordWebhookEvent('stripe', event.id, null, 'ignored');
       return { status: 'ignored', event_id: event.id, type: event.type };
     }
     const verifiedIssuerId = verifyStripeWebhook(rawBody, signatureHeader, this.config.stripeWebhookSecrets);
@@ -465,14 +473,91 @@ class PilotRuntime {
       rail: 'stripe', processorTxnId: tx.externalRef, currency: 'usd',
       occurredAt: tx.occurredAt, customerEmail: tx.customerEmail, kind: 'transaction',
     }, { partner: null });
-    this.recordWebhook(event, tx.issuerId, res.status);
+    this.recordWebhookEvent('stripe', event.id, tx.issuerId, res.status);
     return { status: res.status === 'minted' ? 'issued' : res.status, event_id: event.id, receipt: res.receipt, claim_url: res.claimUrl };
   }
 
-  recordWebhook(event, issuerId, status) {
+  recordWebhookEvent(provider, eventId, issuerId, status) {
     this.store.db.prepare(
       'INSERT OR IGNORE INTO pilot_webhook_events (provider, event_id, issuer_id, status, received_at) VALUES (?, ?, ?, ?, ?)',
-    ).run('stripe', event.id ?? uuidv7(), issuerId, status, new Date().toISOString());
+    ).run(provider, eventId ?? uuidv7(), issuerId, status, new Date().toISOString());
+  }
+
+  webhookSeen(provider, eventId) {
+    if (!eventId) return false;
+    return !!this.store.db.prepare('SELECT 1 FROM pilot_webhook_events WHERE provider = ? AND event_id = ?').get(provider, eventId);
+  }
+
+  // ---- platform onboarding + POS/accounting connectors ---------------------
+
+  // Provision a platform's connected merchants in one call: create each issuer
+  // if new and link it to the partner. This is the "connect once, cover every
+  // merchant" step — the platform's OAuth callback calls it with its roster.
+  provisionMerchants(partnerId, merchants) {
+    this.getPartner(partnerId);
+    const provisioned = merchants.map((m) => {
+      const exists = this.store.db.prepare('SELECT 1 FROM pilot_issuers WHERE issuer_id = ?').get(m.issuerId);
+      if (!exists) this.createIssuer({ issuerId: m.issuerId, name: m.name, emailFrom: m.emailFrom ?? null });
+      this.linkIssuer({ partnerId, issuerId: m.issuerId, connectedAccountRef: m.connectedAccountRef ?? null });
+      return { issuerId: m.issuerId, created: !exists, connectedAccountRef: m.connectedAccountRef ?? null };
+    });
+    this.signPilotEvent('merchants_provisioned', { partner_id: partnerId, count: provisioned.length });
+    return { partnerId, provisioned };
+  }
+
+  // The Square merchant_id (or QBO realmId) that a webhook carries maps to a
+  // connected-account ref; the offering is the merchant's single active one.
+  // Multi-offering merchants need an explicit product→offering map (future).
+  resolveDefaultOffering(issuerId) {
+    const rows = this.store.db.prepare('SELECT offering FROM pilot_offerings WHERE issuer_id = ? AND active = 1').all(issuerId);
+    if (rows.length === 1) return rows[0].offering;
+    if (rows.length === 0) throw new Error(`issuer ${issuerId} has no active offering`);
+    throw new Error(`issuer ${issuerId} has ${rows.length} active offerings; the connector must map the sale to one`);
+  }
+
+  async handleSquareWebhook(rawBody, signatureHeader) {
+    verifySquareWebhook(rawBody, signatureHeader, this.config.squareSignatureKey, this.config.squareNotificationUrl);
+    const event = JSON.parse(rawBody);
+    if (this.webhookSeen('square', event.event_id)) return { status: 'duplicate', event_id: event.event_id };
+    const normalized = squareEventToTransaction(event);
+    if (!normalized) {
+      this.recordWebhookEvent('square', event.event_id, null, 'ignored');
+      return { status: 'ignored', event_id: event.event_id, type: event.type };
+    }
+    const partner = this.getPartner(this.config.squarePartnerId);
+    const issuerId = this.resolveIssuerId(partner, normalized);
+    const offering = this.resolveDefaultOffering(issuerId);
+    const res = await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner });
+    this.recordWebhookEvent('square', event.event_id, issuerId, res.status);
+    return { status: res.status, event_id: event.event_id, receipt: res.receipt, claim_url: res.claimUrl };
+  }
+
+  async handleQuickBooksWebhook(rawBody, signatureHeader) {
+    verifyQuickBooksWebhook(rawBody, signatureHeader, this.config.quickbooksVerifierToken);
+    if (typeof this.config.quickbooksEnrich !== 'function') throw new Error('QuickBooks enrichment is not configured');
+    const partner = this.getPartner(this.config.quickbooksPartnerId);
+    const results = [];
+    for (const note of paymentNotifications(JSON.parse(rawBody))) {
+      const enriched = await this.config.quickbooksEnrich(note.realmId, note.entityId);
+      // Use the deepest known rail identity: when QuickBooks records that the
+      // payment cleared through Stripe/Square, that originating id (not the QBO
+      // entity id) is what lets this report collapse onto the same canonical
+      // transaction the payment rail already minted.
+      const normalized = {
+        rail: enriched.rail || 'quickbooks',
+        processorTxnId: enriched.processorTxnId || note.entityId,
+        connectedAccountRef: enriched.connectedAccountRef || note.realmId,
+        amountCents: enriched.amountCents,
+        currency: enriched.currency || 'USD',
+        customerEmail: enriched.customerEmail || null,
+        occurredAt: enriched.occurredAt || null,
+        kind: enriched.kind || 'transaction',
+      };
+      const issuerId = this.resolveIssuerId(partner, normalized);
+      const offering = enriched.offering || this.resolveDefaultOffering(issuerId);
+      results.push(await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner }));
+    }
+    return { status: 'processed', count: results.length };
   }
 
   presentedReceiptMatchesLedger(receipt) {
