@@ -1,6 +1,6 @@
 # Rendering v1 (spec v0.2a)
 
-Status: **draft**. Spec identifier: `audiencescore/rendering@1`.
+Status: **Released with v0.2.0 — normative for the pilot deployment; pre-cryptographic-audit.** Spec identifier: `audiencescore/rendering@1`.
 Implements spec v0.2a §5 (see [/spec/SPEC-v0.2a.md](../spec/SPEC-v0.2a.md));
 the reference implementation is `reference-impl/src/v02/rendering.js`.
 

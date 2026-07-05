@@ -1,6 +1,6 @@
 # AudienceScore Protocol Spec v0.2 (rev A — post-adversarial review)
 
-Status: DRAFT for sign-off · Supersedes v0.1.0 as a strict generalization (§9)
+Status: Released with v0.2.0 — normative for the pilot deployment; pre-cryptographic-audit · Supersedes v0.1.0 as a strict generalization (§9)
 Rev A integrates findings F1–F10 from the adversarial review register (companion doc).
 Tagline invariant preserved: every review is proven by a verified transaction or verified participation — scores no one can buy.
 
