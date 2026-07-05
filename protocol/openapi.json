@@ -1,105 +1,272 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Audience Score Read API",
-    "version": "0.1.0-draft",
-    "description": "DESIGN DRAFT — there is no live deployment of this API yet. This document specifies the planned public REST read path, a mirror of the MCP `get_score` tool that is the current reference read interface (see /reference-impl). Reading scores requires no authentication. Every response is an Ed25519-signed score manifest: verify `sig` over the canonical JSON of `manifest` against `signer`; trusting the transport or the server is never required.",
+    "title": "AudienceScore Pilot API",
+    "version": "0.2.0-pilot",
+    "description": "Pilot deployment, pre-cryptographic-audit. The independent cryptographic review and per-vertical legal review gates remain open; the pilot ledger may be reset and receipts re-issued after the audit. Reading scores requires no authentication. Pilot receipts, review events, and score manifests carry env=\"pilot\" in the signed body.",
     "license": {
       "name": "CC BY 4.0",
       "identifier": "CC-BY-4.0"
     }
   },
+  "servers": [
+    {
+      "url": "https://api.audiencescore.org",
+      "description": "AudienceScore pilot API"
+    }
+  ],
   "paths": {
-    "/v0/scores/{vendor_id}": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Pilot API health check",
+        "responses": {
+          "200": {
+            "description": "Healthy pilot API",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v0/scores/{offering}": {
       "get": {
         "operationId": "getScore",
-        "summary": "Get the signed audience score manifest for a vendor",
-        "description": "Returns the percentage of verified thumbs-up over attestation-gated verdicts, with sample size, Wilson 95% lower bound, dimension sub-scores, locality scope, spec version, and a provenance hash of the exact event set used — signed by the rendering key.",
+        "summary": "Get a signed pilot score manifest for an offering-version",
+        "description": "Returns rendering v1 over the pilot ledger. The signed manifest body includes env=\"pilot\".",
         "parameters": [
           {
-            "name": "vendor_id",
+            "name": "offering",
             "in": "path",
             "required": true,
             "schema": { "type": "string" },
-            "description": "Vendor identifier"
+            "description": "Offering-version, for example field-elevate-demo@v1."
           },
           {
-            "name": "state",
+            "name": "window_end",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "pattern": "^[A-Z]{2}$" },
-            "description": "Optional US state code to scope the score (e.g. CO). Omitted = national scope."
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Optional explicit rendering window end. Omitted means the server's request time."
           }
         ],
         "responses": {
           "200": {
-            "description": "Signed score manifest",
+            "description": "Signed pilot score manifest",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SignedScoreManifest" }
               }
             }
           },
-          "404": {
-            "description": "Unknown vendor"
+          "400": { "description": "Unknown offering or invalid request" }
+        }
+      }
+    },
+    "/v0/scores/{offering}/evidence": {
+      "get": {
+        "operationId": "getScoreEvidence",
+        "summary": "Get de-identified rendering input for recomputation",
+        "description": "Returns the de-identified rendering input needed to recompute the signed score manifest. Holder identities and customer data are omitted; this is not a holder-to-offering directory.",
+        "parameters": [
+          {
+            "name": "offering",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "window_end",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pilot rendering evidence",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RenderingEvidence" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v0/reviews": {
+      "post": {
+        "operationId": "submitReview",
+        "summary": "Submit a pilot review by presenting a signed receipt",
+        "description": "The holder or their agent presents the signed pilot receipt JSON and a review. The server verifies the receipt, confirms it matches the pilot ledger, then spends the standing through the v0.2 store admission path.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubmitReviewRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pilot review accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmitReviewResponse" }
+              }
+            }
+          },
+          "400": { "description": "Invalid, missing, unknown, or wrong-issuer receipt" },
+          "409": { "description": "Receipt/standing already reviewed" }
+        }
+      }
+    },
+    "/v0/stripe/webhook": {
+      "post": {
+        "operationId": "stripeWebhook",
+        "summary": "Stripe pilot webhook receiver",
+        "description": "Receives checkout.session.completed and invoice.paid events for configured pilot issuers. Stripe webhook secrets are configured only on the VPS environment.",
+        "responses": {
+          "200": {
+            "description": "Webhook handled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "operationId": "mcpHttp",
+        "summary": "Remote MCP HTTP JSON-RPC endpoint",
+        "description": "Pilot HTTP JSON-RPC endpoint exposing initialize, tools/list, and tools/call for get_score.",
+        "responses": {
+          "200": { "description": "JSON-RPC response" }
+        }
+      }
+    },
+    "/docs/copy-to-llm": {
+      "get": {
+        "operationId": "copyToLlm",
+        "summary": "Paste-ready integration brief for agent builders",
+        "responses": {
+          "200": { "description": "Plain-text Copy to LLM brief" }
         }
       }
     }
   },
   "components": {
     "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["ok", "env"],
+        "properties": {
+          "ok": { "type": "boolean" },
+          "env": { "const": "pilot" }
+        }
+      },
       "SignedScoreManifest": {
         "type": "object",
         "required": ["manifest", "signer", "sig"],
         "properties": {
           "manifest": { "$ref": "#/components/schemas/ScoreManifest" },
-          "signer": {
-            "type": "string",
-            "description": "Rendering public key: base64url-encoded SPKI DER Ed25519"
-          },
-          "sig": {
-            "type": "string",
-            "description": "base64url Ed25519 signature over the canonical JSON of `manifest` (keys sorted at every level, no whitespace)"
-          }
+          "signer": { "type": "string", "description": "Ed25519 SPKI public key, base64url" },
+          "sig": { "type": "string", "description": "base64url Ed25519 signature over canonical manifest JSON" }
         }
       },
       "ScoreManifest": {
         "type": "object",
-        "required": ["spec_version", "vendor_id", "locality", "sample_size", "displayed", "computed_at", "provenance"],
+        "required": ["env", "rendering_version", "subject", "window_end", "published", "distinct_receipts"],
         "properties": {
-          "spec_version": { "type": "string", "examples": ["audiencescore/score-spec@0.1"] },
-          "vendor_id": { "type": "string" },
-          "locality": {
+          "env": { "const": "pilot" },
+          "rendering_version": { "type": "string", "examples": ["audiencescore/rendering@1"] },
+          "subject": { "type": "string", "examples": ["offering:field-elevate-demo@v1"] },
+          "window_end": { "type": "string", "format": "date-time" },
+          "published": { "type": "boolean" },
+          "distinct_receipts": { "type": "integer" },
+          "k_anonymity_floor": { "type": "integer" },
+          "purchase_gate": { "type": "boolean" },
+          "standing_class": { "type": "string" },
+          "views": { "type": "object" },
+          "completion_rate": { "type": ["number", "null"] },
+          "sample_mix": { "type": "object" },
+          "facets": { "type": ["object", "null"] },
+          "review_texts": { "type": ["array", "null"], "items": { "type": "string" } },
+          "issuer_disclosures": { "type": "object" },
+          "cross_version": { "type": "boolean" }
+        }
+      },
+      "RenderingEvidence": {
+        "type": "object",
+        "required": ["env", "offering", "reviews", "standings", "issuance", "window_end"],
+        "properties": {
+          "env": { "const": "pilot" },
+          "offering": { "type": "object" },
+          "reviews": { "type": "array", "items": { "type": "object" } },
+          "standings": { "type": "array", "items": { "type": "object" } },
+          "issuance": { "type": "array", "items": { "type": "object" } },
+          "window_end": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Receipt": {
+        "type": "object",
+        "required": ["spec", "receipt_id", "issuer", "holder", "role", "offering", "level", "event", "issued_at", "prev", "env", "coattest", "sig"],
+        "properties": {
+          "spec": { "const": "as/0.2a" },
+          "receipt_id": { "type": "string" },
+          "issuer": { "type": "string" },
+          "holder": { "type": "string", "description": "Pseudonymous holder binding; never plaintext customer identity" },
+          "role": { "enum": ["participant", "payer"] },
+          "offering": { "type": "string" },
+          "level": { "type": "integer", "minimum": 1, "maximum": 4 },
+          "event": { "type": "string" },
+          "issued_at": { "type": "string", "format": "date-time" },
+          "prev": { "type": ["string", "null"] },
+          "env": { "const": "pilot" },
+          "coattest": { "type": "array", "items": { "type": "string" } },
+          "sig": { "type": "string" }
+        }
+      },
+      "SubmitReviewRequest": {
+        "type": "object",
+        "required": ["receipt", "review"],
+        "properties": {
+          "receipt": { "$ref": "#/components/schemas/Receipt" },
+          "review": {
             "type": "object",
-            "description": "Either {\"state\": \"CO\"} or {\"scope\": \"national\"}"
-          },
-          "sample_size": { "type": "integer", "description": "Count of attributable (known-proof-tier) in-scope verdicts" },
-          "displayed": { "type": "boolean", "description": "False below the 10-verdict floor or when total weight is zero; when false, score fields are null" },
-          "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Weighted percent verified thumbs-up" },
-          "wilson_lower_bound": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-          "dimensions": {
-            "type": "object",
-            "additionalProperties": { "$ref": "#/components/schemas/DimensionScore" }
-          },
-          "computed_at": { "type": "string", "format": "date-time" },
-          "provenance": {
-            "type": "object",
-            "required": ["event_count", "event_set_hash"],
+            "required": ["overall"],
             "properties": {
-              "event_count": { "type": "integer" },
-              "event_set_hash": { "type": "string", "description": "sha256 hex of the sorted ids of the exact event set used" }
+              "overall": { "type": "integer", "minimum": 1, "maximum": 5 },
+              "facets": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 5 } },
+              "text": { "type": ["string", "null"] }
             }
           }
         }
       },
-      "DimensionScore": {
+      "SubmitReviewResponse": {
         "type": "object",
-        "required": ["displayed", "sample_size"],
+        "required": ["env", "reviewId", "reviewClass", "event"],
         "properties": {
-          "displayed": { "type": "boolean" },
-          "percent_positive": { "type": "number", "minimum": 0, "maximum": 1 },
-          "sample_size": { "type": "integer" }
+          "env": { "const": "pilot" },
+          "reviewId": { "type": "string" },
+          "reviewClass": { "type": "string" },
+          "event": { "type": "object" }
+        }
+      },
+      "WebhookResponse": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "enum": ["issued", "duplicate", "ignored"] },
+          "event_id": { "type": "string" },
+          "receipt": { "$ref": "#/components/schemas/Receipt" },
+          "claim_url": { "type": "string" }
         }
       }
     }

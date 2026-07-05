@@ -43,6 +43,7 @@ function buildReceipt({
   event,
   issuedAt,
   prev = null,
+  env = null,
   receiptId = uuidv7(),
   coattesterPrivateKeys = [],
 }) {
@@ -58,6 +59,7 @@ function buildReceipt({
     issued_at: issuedAt,
     prev,
   };
+  if (env !== null && env !== undefined) receipt.env = env;
   const shapeError = receiptShapeError(receipt);
   if (shapeError) throw new Error(`refusing to sign a malformed receipt: ${shapeError}`);
   receipt.sig = signReceipt(receipt, issuerPrivateKey);
@@ -78,6 +80,7 @@ function receiptShapeError(receipt) {
   if (typeof receipt.event !== 'string' || !receipt.event) return 'event required';
   if (typeof receipt.issued_at !== 'string' || Number.isNaN(Date.parse(receipt.issued_at))) return 'issued_at must be RFC3339';
   if (receipt.prev !== null && typeof receipt.prev !== 'string') return 'prev must be a receipt_id or null';
+  if (receipt.env !== undefined && receipt.env !== 'pilot') return 'env, when present, must be "pilot"';
   return null;
 }
 

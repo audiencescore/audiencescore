@@ -1,0 +1,25 @@
+# AudienceScore pilot API container.
+#
+# Pilot deployment, pre-cryptographic-audit. Secrets, issuer keys, customer
+# delivery data, and SQLite runtime files must be mounted at /data, never baked
+# into this image.
+FROM node:24-alpine
+
+WORKDIR /app
+COPY reference-impl/package*.json ./reference-impl/
+RUN cd reference-impl && npm ci --omit=dev
+COPY reference-impl/ ./reference-impl/
+COPY protocol/ ./protocol/
+COPY score-spec/ ./score-spec/
+COPY spec/ ./spec/
+COPY conformance/CANONICAL.md ./conformance/CANONICAL.md
+
+ENV AUDIENCESCORE_DATA_DIR=/data \
+    AUDIENCESCORE_DB_PATH=/data/pilot.sqlite \
+    AUDIENCESCORE_KEYS_DIR=/data/keys \
+    AUDIENCESCORE_OUTBOX_DIR=/data/outbox \
+    AUDIENCESCORE_BACKUP_DIR=/data/backups \
+    PORT=8080
+
+EXPOSE 8080
+CMD ["node", "reference-impl/src/pilot/server.js"]
