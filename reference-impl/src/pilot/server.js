@@ -4,6 +4,7 @@
 const http = require('node:http');
 const { URL } = require('node:url');
 const { PilotRuntime, defaultConfig } = require('./runtime');
+const { handleMcp } = require('../mcp-streamable');
 
 const MCP_INSTRUCTIONS =
   'AudienceScore pilot deployment, pre-cryptographic-audit. Use get_score to fetch an Ed25519-signed pilot rendering manifest for an offering-version. Responses are pilot-labeled and may be reset/re-issued after cryptographic audit.';
@@ -53,12 +54,18 @@ function readBody(req) {
   });
 }
 
-function mcpReply(id, result) {
-  return { jsonrpc: '2.0', id, result };
-}
-
-function mcpError(id, code, message) {
-  return { jsonrpc: '2.0', id, error: { code, message } };
+// The pilot's MCP provider for the Streamable-HTTP transport: the offering-based
+// get_score backed by the live ledger.
+function mcpServer(runtime) {
+  return {
+    serverInfo: { name: 'audiencescore-pilot', title: 'AudienceScore Pilot', version: '0.2.0-pilot' },
+    instructions: MCP_INSTRUCTIONS,
+    tools: [TOOL],
+    callTool(name, args) {
+      if (name !== 'get_score') throw new Error(`unknown tool: ${name}`);
+      return runtime.signedScore(args.offering, args.window_end);
+    },
+  };
 }
 
 function copyToLlm(runtime) {
@@ -182,28 +189,11 @@ function createServer(runtime = new PilotRuntime()) {
         const result = await runtime.ingestTransaction(body, { partner });
         return json(res, result.status === 'minted' ? 201 : 200, result);
       }
-      if (req.method === 'POST' && url.pathname === '/mcp') {
-        const message = JSON.parse(await readBody(req));
-        const { id, method, params } = message;
-        if (method === 'initialize') {
-          return json(res, 200, mcpReply(id, {
-            protocolVersion: '2025-06-18',
-            capabilities: { tools: {} },
-            serverInfo: { name: 'audiencescore-pilot', title: 'AudienceScore Pilot', version: '0.2.0-pilot' },
-            instructions: MCP_INSTRUCTIONS,
-          }));
-        }
-        if (method === 'tools/list') return json(res, 200, mcpReply(id, { tools: [TOOL] }));
-        if (method === 'tools/call') {
-          if (params.name !== 'get_score') return json(res, 200, mcpError(id, -32602, `unknown tool: ${params.name}`));
-          const { offering, window_end: windowEnd } = params.arguments ?? {};
-          const signed = runtime.signedScore(offering, windowEnd);
-          return json(res, 200, mcpReply(id, {
-            content: [{ type: 'text', text: JSON.stringify(signed, null, 2) }],
-            structuredContent: signed,
-          }));
-        }
-        return json(res, 200, mcpError(id, -32601, `method not found: ${method}`));
+      if (url.pathname === '/mcp') {
+        const raw = req.method === 'POST' ? await readBody(req) : '';
+        const out = handleMcp(req.method, req.headers, raw, mcpServer(runtime));
+        res.writeHead(out.status, out.headers);
+        return res.end(out.body);
       }
       return json(res, 404, { error: 'not found', env: 'pilot' });
     } catch (err) {
