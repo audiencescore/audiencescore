@@ -37,6 +37,24 @@ jobs:
             exit 1
           fi
 
+      - name: Published key set contains the live rendering key
+        run: |
+          set -euo pipefail
+          HEALTH=$(curl -sS --max-time 20 https://api.audiencescore.org/health)
+          LIVE_FP=$(echo "$HEALTH" | jq -r '.signer_fingerprint')
+          LIVE_KEY=$(echo "$HEALTH" | jq -r '.signer')
+          curl -sS --max-time 20 https://audiencescore.org/.well-known/audiencescore-keys.json \
+            | jq -e --arg fp "$LIVE_FP" --arg k "$LIVE_KEY" \
+              '.keys[] | select(.keyid == $fp and .key == $k)' > /dev/null \
+            || { echo "::error::published key set at audiencescore.org does not contain the live rendering key"; exit 1; }
+
+      - name: Apex discovery card matches the repo source
+        run: |
+          set -euo pipefail
+          APEX=$(curl -sS --max-time 20 https://audiencescore.org/.well-known/mcp/server-card.json | jq -S .)
+          REPO=$(curl -sS --max-time 20 "https://raw.githubusercontent.com/audiencescore/audiencescore/${GITHUB_SHA}/docs/.well-known/mcp/server-card.json" | jq -S .)
+          [ "$APEX" = "$REPO" ] || { echo "::error::apex server-card diverges from the repo copy — update both together"; diff <(echo "$REPO") <(echo "$APEX") || true; exit 1; }
+
       - name: Compare a fixed-window signed manifest byte-for-byte
         run: |
           set -euo pipefail

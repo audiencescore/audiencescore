@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- `reference-impl/src/mcp-tools.js`: superseded v0.1 helper with zero inbound
+  references and no possible external consumers (repository has never been
+  forked).
+
+### Changed
+
+- The cross-host probe now also asserts the published key set at
+  `audiencescore.org/.well-known/audiencescore-keys.json` contains the live
+  rendering key, and that the apex MCP server card matches the repository
+  source, so discovery metadata cannot silently diverge.
+- The pilot deployment verification checklist now includes the write-path
+  live check (`scripts/pilot-live-check.mjs`) and the cross-host probe.
+
 ### Fixed
 
 - The hosted read API is now a thin fail-closed reverse proxy to the pilot

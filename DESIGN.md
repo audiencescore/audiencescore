@@ -151,3 +151,8 @@ Before reporting done:
 - Verify the manifest signature and recompute from public evidence.
 - Confirm abuse failures: receipt reuse, wrong declared issuer, no receipt.
 - Run the full acceptance suite and GitHub CI.
+- Run `reference-impl/scripts/pilot-live-check.mjs` against the public URL
+  (mints and consumes one throwaway receipt; see the script header) — this is
+  the write-path check the scheduled cross-host probe does not cover.
+- Confirm the cross-host probe workflow is green after the deploy; it asserts
+  every public host serves this commit under the one published rendering key.
