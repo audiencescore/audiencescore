@@ -89,10 +89,6 @@ cd reference-impl && npm ci && npm test
    derived from every offering they ever appeared in, forever. New offering IDs
    never reset history.
 
-For the superseded v0.1 agent-flow walkthrough — how a complaint to your
-assistant becomes a signed, receipt-gated verdict without a form ever
-existing — see [How a review actually happens](docs/archive/how-a-review-happens.md).
-
 ## The attestation ladder
 
 L1 TRANSACTED (value moved) → L2 ENGAGED (verified use) → L3 COMPLETED

@@ -42,6 +42,7 @@ URL in any MCP client — no account, no API key, read-only:
 - [Issuer quickstart](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/ISSUER-QUICKSTART.md): merchant setup
 - [Leave a review](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/LEAVE-A-REVIEW.md): customer and agent review submission
 - [Read scores](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/READ-SCORES.md): get_score, verification, recomputation
+- [Pilot deployment runbook](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/DEPLOYMENT.md): host deployment and verification checklist
 
 ## Specifications
 
@@ -64,6 +65,5 @@ URL in any MCP client — no account, no API key, read-only:
 ## Governance and policy
 
 - [Governance constitution](https://github.com/audiencescore/audiencescore/blob/main/GOVERNANCE.md): the open-forever guarantees and sealed-admission accountability
-- [Architecture overview (archived v0.1)](https://github.com/audiencescore/audiencescore/blob/main/docs/archive/architecture.md)
 - [Prior art and comparisons](https://github.com/audiencescore/audiencescore/blob/main/docs/prior-art.md)
 - [Contributing](https://github.com/audiencescore/audiencescore/blob/main/CONTRIBUTING.md): RFC process for spec changes, DCO for code

@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows
 - `reference-impl/src/mcp-tools.js`: superseded v0.1 helper with zero inbound
   references and no possible external consumers (repository has never been
   forked).
+- Superseded process and v0.1 narrative archive pages:
+  `docs/archive/CLEANUP-INVENTORY-2026-07-05.md`,
+  `docs/archive/architecture.md`, and
+  `docs/archive/how-a-review-happens.md`.
 - The v0.1 executable implementation at HEAD: `reference-impl/src/events.js`,
   `reference-impl/src/receipts.js`, `reference-impl/src/score.js`,
   `reference-impl/src/mcp-server.js`, and their v0.1-only tests. Git history
@@ -20,6 +24,8 @@ All notable changes to this project are documented here. The format follows
 
 - `reference-impl/demo.js` now proves the v0.2 pilot loop: receipt issued,
   review admitted, score rendered, and score queried over MCP.
+- The pilot deployment runbook moved from root `DESIGN.md` to
+  `docs/pilot/DEPLOYMENT.md`.
 - The cross-host probe now also asserts the published key set at
   `audiencescore.org/.well-known/audiencescore-keys.json` contains the live
   rendering key, and that the apex MCP server card matches the repository

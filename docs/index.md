@@ -11,12 +11,11 @@ Pilot deployment, pre-cryptographic-audit. The independent cryptographic review
 and per-vertical legal review gates remain open. The pilot ledger may be reset
 and receipts re-issued after the audit.
 
-- [How a review actually happens (archived v0.1)](archive/how-a-review-happens.md)
-- [Architecture overview (archived v0.1)](archive/architecture.md)
 - [Issuer quickstart](pilot/ISSUER-QUICKSTART.md)
 - [Leave a review](pilot/LEAVE-A-REVIEW.md)
 - [Read scores](pilot/READ-SCORES.md)
 - [Copy to LLM](pilot/COPY-TO-LLM.md)
+- [Pilot deployment runbook](pilot/DEPLOYMENT.md)
 - [Spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md)
 - [Rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md)
 - [Event specification v0.1 (superseded; retained)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md)
@@ -26,7 +25,6 @@ and receipts re-issued after the audit.
 - [Reference implementation](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/README.md)
 - [Prior art and related systems](prior-art.md)
 - [Pilot API OpenAPI](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json)
-- [Cleanup inventory, 2026-07-05](archive/CLEANUP-INVENTORY-2026-07-05.md)
 
 Status: spec v0.2.0 released; pilot is live, pre-cryptographic-audit, not
 production. Feedback via GitHub issues is the point of this stage.
