@@ -59,6 +59,25 @@ independent review:
   deployment on a server database must additionally run the application under
   a role with no UPDATE/DELETE grants (DRIFT.md D-4).
 
+## Pilot rendering key (pinned)
+
+Every public read host serves manifests signed by one pilot rendering key,
+held only by the pilot server. Verify a response's `signer` against the
+published key set at
+`https://audiencescore.org/.well-known/audiencescore-keys.json` — do not trust
+the embedded key alone. Current pilot rendering key fingerprint (SHA-256 of
+the `signer` string):
+
+```
+d5bbe47ae8c9f6878cdb526ef5b9c1012ac262f01c2cdeef1674eba888ab23d7
+```
+
+`GET /health` on any public host returns the live `signer`,
+`signer_fingerprint`, and serving `git_sha`; a scheduled cross-host probe
+fails publicly if hosts ever diverge. The pilot ledger may be reset and this
+key rotated after the independent cryptographic review; rotations update the
+published key set and this fingerprint in the same commit.
+
 Neither the demonstrator nor this spec substitutes for the two standing
 release gates: an independent cryptographic review of the receipt scheme, and
 a per-vertical legal review, both required before any receipt signs a real
