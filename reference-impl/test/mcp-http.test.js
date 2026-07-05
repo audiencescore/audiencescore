@@ -105,6 +105,8 @@ test('standalone read listener serves v0.2 REST score and evidence routes', asyn
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {
+    const health = await fetch(`${base}/health`).then((r) => r.json());
+    assert.equal(health.ok, true);
     const score = await fetch(`${base}/v0/scores/field-elevate-demo%40v1`).then((r) => r.json());
     assert.equal(score.manifest.env, 'pilot');
     assert.equal(score.manifest.rendering_version, 'audiencescore/rendering@1');

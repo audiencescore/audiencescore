@@ -10,7 +10,30 @@ const { handleMcp } = require('./mcp-streamable');
 const { PilotRuntime } = require('./pilot/runtime');
 const { mcpServer } = require('./pilot/mcp');
 
-function buildServer(runtime = new PilotRuntime()) {
+function ensureHostedDemoOffering(runtime) {
+  const issuerId = 'field-elevate-pilot';
+  const offering = 'field-elevate-demo@v1';
+  const issuer = runtime.store.db.prepare('SELECT issuer_id FROM pilot_issuers WHERE issuer_id = ?').get(issuerId);
+  if (!issuer) runtime.createIssuer({ issuerId, name: 'Field Elevate Pilot' });
+  try {
+    runtime.getOffering(offering);
+  } catch {
+    runtime.addOffering({
+      issuerId,
+      offeringId: 'field-elevate-demo',
+      version: 'v1',
+      name: 'Field Elevate Demo',
+      priceCents: 10000,
+      components: { service: 'ent_field_elevate_demo' },
+      attestationCriteria: {},
+    });
+  }
+}
+
+function buildServer(runtime = null) {
+  const ownsRuntime = runtime === null;
+  if (ownsRuntime) runtime = new PilotRuntime();
+  if (ownsRuntime) ensureHostedDemoOffering(runtime);
   const server = mcpServer(runtime);
   server.runtime = runtime;
   return server;
