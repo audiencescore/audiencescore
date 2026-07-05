@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const { Store } = require('../v02/store');
 const { uuidv7, verifyReceipt } = require('../v02/receipts');
 const { canonicalReceiptString } = require('../v02/canonical');
-const { canonicalize, signPayload, publicKeyToString, verifyPayload } = require('../crypto');
+const { signPayload, publicKeyToString, verifyPayload } = require('../crypto');
 const { coattestReceipt } = require('../v02/signing');
 const { renderOffering } = require('../v02/rendering');
 const { generateHolderRoot, generateSalt, deriveHolderKeyPair, holderBinding } = require('../v02/holder');
@@ -102,14 +102,21 @@ CREATE TABLE IF NOT EXISTS pilot_corroborations (
   coattest TEXT,
   logged_at TEXT NOT NULL
 );
+-- A delivery lock, not a record: holding a row means "the review link for this
+-- transaction is sent or in flight." The authoritative delivery lives in
+-- pilot_receipt_deliveries. Rows are released on send failure so a later report
+-- can retry, so this table is intentionally NOT append-only.
 CREATE TABLE IF NOT EXISTS pilot_txn_deliveries (
   tx_canonical_key TEXT PRIMARY KEY,
-  mode TEXT NOT NULL,
-  ref TEXT,
-  delivered_at TEXT NOT NULL
+  locked_at TEXT NOT NULL
 );
--- Evidence tables are append-only: the dedup anchor and its corroborations
--- can never be rewritten (mirrors the ledger's I-5 immutability).
+-- One connected-account ref per partner, so a webhook's merchant id resolves to
+-- exactly one issuer. (Multiple NULL refs are allowed for manually linked issuers.)
+CREATE UNIQUE INDEX IF NOT EXISTS pilot_link_account_unique
+  ON pilot_partner_issuer_links (partner_id, connected_account_ref);
+-- Evidence and the signed event log are append-only: the dedup anchor, its
+-- corroborations, and every signed pilot event can never be rewritten (mirrors
+-- the ledger's I-5 immutability).
 CREATE TRIGGER IF NOT EXISTS pilot_txn_registry_no_update BEFORE UPDATE ON pilot_txn_registry
 BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_txn_registry'); END;
 CREATE TRIGGER IF NOT EXISTS pilot_txn_registry_no_delete BEFORE DELETE ON pilot_txn_registry
@@ -118,6 +125,10 @@ CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_update BEFORE UPDATE ON pil
 BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_corroborations'); END;
 CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_delete BEFORE DELETE ON pilot_corroborations
 BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_corroborations'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_events_no_update BEFORE UPDATE ON pilot_events
+BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_events'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_events_no_delete BEFORE DELETE ON pilot_events
+BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_events'); END;
 `;
 
 function defaultConfig(overrides = {}) {
@@ -193,6 +204,10 @@ function receiptFromStoredRow(row) {
   };
 }
 
+// renderingInput carries each holder binding for internal standing math; the
+// public /evidence endpoint must not, so strip it before returning (spec §7,
+// the no-holder-directory rule). Rendered output never depends on holder, so a
+// recompute from stripped evidence still matches the signed manifest.
 function stripHolderFromInput(input) {
   return {
     ...input,
@@ -295,8 +310,8 @@ class PilotRuntime {
     return row;
   }
 
-  // A platform links each of its connected merchants to one of our issuers.
-  // One platform → many issuers: the "connect once, cover all merchants" map.
+  // Link a partner to one of our issuers, optionally keyed by the partner's
+  // connected-account ref. A partner may link many issuers.
   linkIssuer({ partnerId, issuerId, connectedAccountRef = null }) {
     this.getPartner(partnerId);
     this.getIssuer(issuerId);
@@ -363,18 +378,25 @@ class PilotRuntime {
   // how many sources report it or which one carries the customer's contact.
   async deliverOnce(canonicalKey, { issuerMeta, issuerId, offering, receipt, claimUrl, customerEmail, externalRef = null }) {
     if (!customerEmail) return { mode: 'none', file: null };
-    const reserved = this.store.db.prepare(
-      'INSERT OR IGNORE INTO pilot_txn_deliveries (tx_canonical_key, mode, ref, delivered_at) VALUES (?, ?, ?, ?)',
-    ).run(canonicalKey, 'reserved', receipt.receipt_id, new Date().toISOString());
-    if (reserved.changes === 0) return { mode: 'already_delivered', file: null };
-    const delivery = await deliverReceiptEmail(
-      { ...this.config, emailFrom: issuerMeta.email_from || this.config.emailFrom },
-      { to: customerEmail, receipt, claimUrl },
-    );
-    this.store.db.prepare(
-      'INSERT INTO pilot_receipt_deliveries (tx_id, receipt_id, issuer_id, offering, delivery_mode, delivery_ref, external_ref, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run(canonicalKey, receipt.receipt_id, issuerId, offering, delivery.mode, delivery.file ?? null, externalRef, new Date().toISOString());
-    return delivery;
+    const lock = this.store.db.prepare(
+      'INSERT OR IGNORE INTO pilot_txn_deliveries (tx_canonical_key, locked_at) VALUES (?, ?)',
+    ).run(canonicalKey, new Date().toISOString());
+    if (lock.changes === 0) return { mode: 'already_delivered', file: null };
+    try {
+      const delivery = await deliverReceiptEmail(
+        { ...this.config, emailFrom: issuerMeta.email_from || this.config.emailFrom },
+        { to: customerEmail, receipt, claimUrl },
+      );
+      this.store.db.prepare(
+        'INSERT INTO pilot_receipt_deliveries (tx_id, receipt_id, issuer_id, offering, delivery_mode, delivery_ref, external_ref, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(canonicalKey, receipt.receipt_id, issuerId, offering, delivery.mode, delivery.file ?? null, externalRef, new Date().toISOString());
+      return delivery;
+    } catch (err) {
+      // Delivery is best-effort: release the lock so a later report of the same
+      // sale can retry, and never fail ingestion because an email send failed.
+      this.store.db.prepare('DELETE FROM pilot_txn_deliveries WHERE tx_canonical_key = ?').run(canonicalKey);
+      return { mode: 'deferred', error: err.message };
+    }
   }
 
   /**
@@ -390,6 +412,9 @@ class PilotRuntime {
     this.getOffering(offering);
     const role = event.role || 'participant';
     const amountCents = Number(event.amountCents);
+    if (event.kind !== 'reversal' && (!Number.isInteger(amountCents) || amountCents <= 0)) {
+      throw new Error('amountCents must be a positive integer: an L1 receipt requires value to have moved');
+    }
     const occurredAt = event.occurredAt || new Date().toISOString();
     const customerEmail = event.customerEmail || null;
     const { key: canonicalKey, basis } = canonicalTxnKey({
@@ -456,18 +481,17 @@ class PilotRuntime {
   }
 
   async handleStripeWebhook(rawBody, signatureHeader) {
+    // Verify the signature before parsing, filtering, or writing anything —
+    // an unsigned body must never touch the database (no bookkeeping row, no
+    // event-id reservation that could pre-empt a later legitimate event).
+    const verifiedIssuerId = verifyStripeWebhook(rawBody, signatureHeader, this.config.stripeWebhookSecrets);
     const event = JSON.parse(rawBody);
     if (!['checkout.session.completed', 'invoice.paid'].includes(event.type)) {
-      this.recordWebhookEvent('stripe', event.id, null, 'ignored');
       return { status: 'ignored', event_id: event.id, type: event.type };
     }
-    const verifiedIssuerId = verifyStripeWebhook(rawBody, signatureHeader, this.config.stripeWebhookSecrets);
     const tx = eventToTransaction(event, verifiedIssuerId);
     if (tx.issuerId !== verifiedIssuerId) throw new Error('Stripe metadata issuer does not match verified webhook secret');
-    const existing = this.store.db.prepare(
-      'SELECT * FROM pilot_webhook_events WHERE provider = ? AND event_id = ?',
-    ).get('stripe', event.id);
-    if (existing) return { status: 'duplicate', event_id: event.id };
+    if (this.webhookSeen('stripe', event.id)) return { status: 'duplicate', event_id: event.id };
     const res = await this.ingestTransaction({
       issuerId: tx.issuerId, offering: tx.offering, role: tx.role, amountCents: tx.amountCents,
       rail: 'stripe', processorTxnId: tx.externalRef, currency: 'usd',
@@ -490,9 +514,8 @@ class PilotRuntime {
 
   // ---- platform onboarding + POS/accounting connectors ---------------------
 
-  // Provision a platform's connected merchants in one call: create each issuer
-  // if new and link it to the partner. This is the "connect once, cover every
-  // merchant" step — the platform's OAuth callback calls it with its roster.
+  // Provision a platform's merchants in one call: create each issuer if new and
+  // link it to the partner. The platform's OAuth callback passes its roster.
   provisionMerchants(partnerId, merchants) {
     this.getPartner(partnerId);
     const provisioned = merchants.map((m) => {
@@ -538,6 +561,10 @@ class PilotRuntime {
     const partner = this.getPartner(this.config.quickbooksPartnerId);
     const results = [];
     for (const note of paymentNotifications(JSON.parse(rawBody))) {
+      // QBO webhooks have no delivery id; dedup on the entity change itself so a
+      // retry does not re-enrich (an API call) or append another corroboration.
+      const noteId = `${note.realmId}:${note.entityId}:${note.lastUpdated ?? ''}`;
+      if (this.webhookSeen('quickbooks', noteId)) continue;
       const enriched = await this.config.quickbooksEnrich(note.realmId, note.entityId);
       // Use the deepest known rail identity: when QuickBooks records that the
       // payment cleared through Stripe/Square, that originating id (not the QBO
@@ -555,7 +582,9 @@ class PilotRuntime {
       };
       const issuerId = this.resolveIssuerId(partner, normalized);
       const offering = enriched.offering || this.resolveDefaultOffering(issuerId);
-      results.push(await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner }));
+      const res = await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner });
+      this.recordWebhookEvent('quickbooks', noteId, issuerId, res.status);
+      results.push(res);
     }
     return { status: 'processed', count: results.length };
   }

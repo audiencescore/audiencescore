@@ -37,8 +37,8 @@ const count = (r, sql, ...a) => r.store.db.prepare(sql).get(...a).c;
 test('same rail transaction from two partners → one receipt, one corroboration, one review-right, one delivery', async () => {
   const runtime = new PilotRuntime(tempConfig());
   setup(runtime);
-  const stripe = runtime.createPartner({ partnerId: 'stripe-rail', name: 'Stripe', kind: 'rail' });
-  const qbo = runtime.createPartner({ partnerId: 'quickbooks', name: 'QuickBooks', kind: 'platform' });
+  runtime.createPartner({ partnerId: 'stripe-rail', name: 'Stripe', kind: 'rail' });
+  runtime.createPartner({ partnerId: 'quickbooks', name: 'QuickBooks', kind: 'platform' });
   runtime.linkIssuer({ partnerId: 'stripe-rail', issuerId: 'acme' });
   runtime.linkIssuer({ partnerId: 'quickbooks', issuerId: 'acme' });
 
@@ -147,6 +147,30 @@ test('a refund posts a reversal corroboration, never a receipt', async () => {
   assert.equal(reversal.status, 'reversed');
   assert.equal(count(runtime, 'SELECT count(*) c FROM receipts WHERE offering = ?', 'widget@v1'), 1, 'reversal added no receipt');
   assert.equal(count(runtime, "SELECT count(*) c FROM pilot_corroborations WHERE kind = 'reversed'"), 1);
+  runtime.close();
+});
+
+test('ingestion refuses a non-positive amount (an L1 receipt requires value to have moved)', async () => {
+  const runtime = new PilotRuntime(tempConfig());
+  setup(runtime);
+  runtime.createPartner({ partnerId: 'plat', name: 'Platform', kind: 'platform' });
+  runtime.linkIssuer({ partnerId: 'plat', issuerId: 'acme' });
+  await assert.rejects(
+    () => runtime.ingestTransaction(
+      { issuerId: 'acme', offering: 'widget@v1', amountCents: 0, currency: 'usd', rail: 'stripe', processorTxnId: 'pi_ZERO', occurredAt: '2026-07-04T15:00:00Z', kind: 'transaction' },
+      { partner: runtime.getPartner('plat') },
+    ),
+    /positive integer/,
+  );
+  runtime.close();
+});
+
+test('an unsigned Stripe webhook is refused before anything is written', async () => {
+  const runtime = new PilotRuntime(tempConfig({ stripeWebhookSecrets: { acme: 'whsec_x' } }));
+  setup(runtime);
+  const raw = JSON.stringify({ id: 'evt_forge', type: 'foo.bar' });
+  await assert.rejects(() => runtime.handleStripeWebhook(raw, undefined), /signature/i);
+  assert.equal(count(runtime, 'SELECT count(*) c FROM pilot_webhook_events'), 0, 'no bookkeeping row from an unsigned body');
   runtime.close();
 });
 

@@ -207,10 +207,15 @@ function createServer(runtime = new PilotRuntime()) {
       }
       return json(res, 404, { error: 'not found', env: 'pilot' });
     } catch (err) {
-      const status = /already reviewed|already/.test(err.message) ? 409
-        : /receipt|issuer|offering|signature|token|required|missing|invalid|metadata/.test(err.message) ? 400
-          : 500;
-      return json(res, status, { error: err.message, env: 'pilot' });
+      const msg = err.message || 'error';
+      // Client errors carry an actionable message; anything unrecognized is a
+      // 500 and returns a generic body so internals never leak to the caller.
+      if (/already/.test(msg)) return json(res, 409, { error: msg, env: 'pilot' });
+      if (/not authorized/.test(msg)) return json(res, 403, { error: msg, env: 'pilot' });
+      if (/receipt|issuer|offering|signature|token|required|missing|invalid|metadata|partner|amount|authoriz|unknown|resolve/.test(msg)) {
+        return json(res, 400, { error: msg, env: 'pilot' });
+      }
+      return json(res, 500, { error: 'internal error', env: 'pilot' });
     }
   }
 

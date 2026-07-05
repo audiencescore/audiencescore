@@ -13,9 +13,14 @@
 //                  payment id) is the shared fingerprint that propagates
 //                  downstream; an exact, safe merge.
 //   2. surrogate — no rail id but a customer identifier is present → a
-//                  surrogate over issuer+amount+currency+hour+customer,
-//                  strong enough to merge (same customer, same amount, same
-//                  hour is the same sale, not a coincidence).
+//                  surrogate over issuer+amount+currency+UTC-hour+customer.
+//                  This is a heuristic, not an exact match: two same-customer,
+//                  same-amount sales within one UTC hour collapse into one, and
+//                  one sale whose sources report timestamps across an hour
+//                  boundary can split into two. A shared rail id (basis 1) is
+//                  exact; the surrogate is only the fallback when none exists,
+//                  and it requires a timezone-qualified timestamp to be stable
+//                  across hosts.
 //   3. unique    — neither a rail id nor a customer identifier → do NOT
 //                  merge. Two unrelated cash sales of the same amount must
 //                  not collapse: wrongly merging suppresses a real review,
@@ -44,7 +49,7 @@ function customerHash(contact) {
 function hourBucket(occurredAt) {
   const d = new Date(occurredAt);
   if (Number.isNaN(d.getTime())) throw new Error('occurred_at must be a valid RFC3339 timestamp');
-  return d.toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+  return d.toISOString().slice(0, 13);
 }
 
 /**

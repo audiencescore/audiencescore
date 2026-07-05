@@ -26,7 +26,6 @@ const { DatabaseSync } = require('node:sqlite');
 const {
   RECEIPT_SPEC,
   ROLES,
-  PAYER_MAX_LEVEL,
   uuidv7,
   buildReceipt,
   verifyReceipt,
