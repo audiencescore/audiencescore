@@ -40,7 +40,8 @@
         "transport": "streamable-http",
         "remote": "https://mcp.audiencescore.org/mcp",
         "specStatus": "pilot-v0.2a",
-        "hasLiveData": false,
+        "hasLiveData": true,
+        "liveDataScope": "pilot-resettable",
         "codeLicense": "Apache-2.0",
         "specLicense": "CC-BY-4.0"
       }

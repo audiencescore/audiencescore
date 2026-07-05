@@ -8,9 +8,9 @@ domain ownership as the basis of identity: a provider publishes a static
 `ai-catalog.json` at a well-known path on its own domain, and registries crawl
 it — no per-registry submission required.
 
-The manifest lives in the repo at
-[`.well-known/ai-catalog.json`](.well-known/ai-catalog.json) and is validated
-against the official [ARD JSON Schema](https://github.com/ards-project/ard-spec/blob/main/spec/schemas/ai-catalog.schema.json)
+The manifest copy in this repository lives at
+[`docs/.well-known/ai-catalog.json`](.well-known/ai-catalog.json) and is
+validated against the official [ARD JSON Schema](https://github.com/ards-project/ard-spec/blob/main/spec/schemas/ai-catalog.schema.json)
 (draft 2020-12).
 
 ## Where it must be served
@@ -21,19 +21,22 @@ ARD requires the manifest at exactly this URL:
 https://audiencescore.org/.well-known/ai-catalog.json
 ```
 
-GitHub Pages publishes only the `docs/` folder (see the docs-link CI check), so
-the file is stored at `docs/.well-known/ai-catalog.json` — which maps to the
-required URL once the domain points at Pages.
+GitHub Pages publishes the repository's `docs/` folder (see the docs-link CI
+check), so this repository stores the file at
+`docs/.well-known/ai-catalog.json`. The public apex domain currently serves its
+well-known files from the website deployment, so keep this repo copy and the
+apex copy in sync until the project chooses a single publishing source.
 
-## Deploy steps — these belong to the project owner, not to CI
+## Deployment status
 
-The manifest is a **planted flag**: committing it here does nothing until the
-domain is wired up. None of the following are done, and none should be
-automated in this repo — they are deploy/DNS actions for the owner:
+The manifest is not deployed by the reference implementation tests. DNS,
+website hosting, and dot-folder publishing are operational concerns:
 
-1. **Point `audiencescore.org` at the documentation host** (Pages/Vercel custom
-   domain + the DNS records the host specifies + a `CNAME`). Until then the
-   well-known URL does not resolve.
+1. **Serve `audiencescore.org/.well-known/ai-catalog.json` from the active
+   website host.** As of 2026-07-05, the URL resolves, but the active website
+   deployment has its own copy of the well-known files. Treat the single-source
+   ownership decision as unresolved; do not assume editing this repo file alone
+   updates the apex URL.
 
 2. **Make Pages actually publish the `.well-known/` dot-folder.** GitHub Pages'
    default Jekyll build **excludes files and folders that start with a dot**, so
@@ -45,8 +48,9 @@ automated in this repo — they are deploy/DNS actions for the owner:
    - add an empty `docs/.nojekyll` file (disables Jekyll entirely — simpler, but
      then the `.md` docs pages are served raw instead of rendered).
 
-   This is left as an owner decision because it changes how the whole site
-   builds; it is not a code change and is not covered by the reference tests.
+   This remains an owner decision because it changes how the whole docs site
+   builds; it is not a runtime code change and is not covered by the reference
+   tests.
 
 3. **Serve the referenced MCP server card.** The catalog entry's `url` points at
    `https://audiencescore.org/.well-known/mcp/server-card.json`, which is stored
@@ -57,10 +61,10 @@ automated in this repo — they are deploy/DNS actions for the owner:
 
 ## Honest status
 
-- **No live review data.** The `metadata.hasLiveData` field is `false` on
-  purpose. The server answers `get_score`, but with no receipts recorded an
-  offering remains below the k-anonymity floor and returns `published:false`.
-  Listing the capability is a discovery flag, not a claim of coverage.
+- **Pilot data is resettable.** The server answers `get_score` and
+  `get_score_evidence` for pilot-labeled data. Offerings below the k-anonymity
+  floor return `published:false`; listing the capability is a discovery flag,
+  not a production coverage claim.
 - **ARD was pre-production in mid-2026.** Expect little or no crawler traffic
   yet; this is planting the flag so discovery lands the day the ecosystem and
   live data both exist.

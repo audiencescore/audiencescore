@@ -37,9 +37,10 @@ unless you prefer otherwise.
 
 AudienceScore has a hosted pilot read surface (`mcp.audiencescore.org`) and
 operator-deployable pilot write/issuer code in `reference-impl/src/pilot/`.
-There is no production deployment and no live review data. Reports against the
-spec, reference implementation, hosted read surface, and pilot write paths are
-valuable — earlier is cheaper.
+There is no production deployment and no production review data. The pilot may
+contain resettable pilot-labeled reviews and receipts while the pre-audit
+surface is exercised. Reports against the spec, reference implementation,
+hosted read surface, and pilot write paths are valuable — earlier is cheaper.
 
 ## Known hardening notes (v0.2a reference implementation)
 

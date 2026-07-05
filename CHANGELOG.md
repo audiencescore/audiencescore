@@ -34,7 +34,8 @@ Protocol spec v0.2 rev A, implemented. A strict generalization of v0.1
 case). **Releasing the spec text does not close the release gates:** two
 gates remain open before any receipt signs a real transaction — independent
 cryptographic review of the receipt scheme, and per-vertical legal review —
-see the README Status section. No live data is being collected.
+see the README Status section. At the 0.2.0 release cut, no live data was
+being collected.
 
 ### Added
 

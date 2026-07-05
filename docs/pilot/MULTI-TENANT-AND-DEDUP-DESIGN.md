@@ -1,6 +1,7 @@
 # Multi-tenant ingestion + transaction de-duplication — design
 
-**Status:** design for the next pilot build. Pilot deployment, pre-cryptographic-audit.
+**Status:** implemented pilot spine plus remaining deployment work. Pilot deployment,
+pre-cryptographic-audit.
 
 Two capabilities so AudienceScore is "designed for everyone to connect" from day one:
 
@@ -160,7 +161,8 @@ On each `/v1/transactions`:
 5. **[DONE]** `test/pilot/ingest.test.js` + `test/pilot/connectors.test.js`: same sale from
    multiple partners/connectors → one receipt + one review-right + one delivery + corroborations;
    corroboration-signature verification; late-email delivery-once; unlinked-partner refusal;
-   reversal; endpoint auth; webhook signature rejection; cross-connector dedup. 79/79 suite green.
+   reversal; endpoint auth; webhook signature rejection; cross-connector dedup. Covered by
+   `cd reference-impl && npm test`.
 
 The spine and its producers are built and tested. What remains is deployment work that plugs into
 the same core without changing it — the OAuth redirect flows and the KMS/enclave key backend —

@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for looking at this at the draft stage — spec critique is the most
-valuable contribution right now.
+Thanks for looking at AudienceScore early — spec critique and pilot feedback
+are the most valuable contributions right now.
 
 ## Issues
 

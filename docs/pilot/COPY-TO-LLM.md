@@ -13,8 +13,8 @@ production.
 Hosted read base URL: https://mcp.audiencescore.org
 
 Issuer/write API base URL: set by the pilot operator when deploying
-reference-impl/src/pilot/server.js. Do not assume api.audiencescore.org works
-until DNS is configured.
+reference-impl/src/pilot/server.js. The public pilot server currently serves
+https://api.audiencescore.org; other operators must publish their own base URL.
 
 Read a signed score manifest:
 curl -s "https://mcp.audiencescore.org/v0/scores/{offering}"
