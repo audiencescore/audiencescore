@@ -21,6 +21,19 @@ tool. Reading scores requires no account or API key. Score math is open
 forever by constitution; only operator-side admission (anti-fraud) checks
 may be sealed, under hash-commit-then-reveal accountability.
 
+## Connect (remote MCP)
+
+A live, public MCP server speaking Streamable HTTP (spec 2025-06-18). Add it by
+URL in any MCP client — no account, no API key, read-only:
+
+- MCP endpoint: `https://audiencescore-mcp.vercel.app/mcp`
+- Tool: `get_score(vendor_id[, state])` → an Ed25519-signed manifest (percent
+  verified thumbs-up, Wilson 95% lower bound, sample size, provenance hash) the
+  caller verifies and recomputes from public data. Pilot deployment,
+  pre-cryptographic-audit; with no verified reviews yet a vendor returns
+  `displayed: false` rather than a fabricated number.
+- One-line handshake: `curl -s -X POST https://audiencescore-mcp.vercel.app/mcp -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_score","arguments":{"vendor_id":"<vendor>"}}}'`
+
 ## Pilot API
 
 - [Pilot API](https://api.audiencescore.org): hosted pilot, not production

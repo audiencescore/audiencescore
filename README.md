@@ -41,6 +41,8 @@ critique of the spec is exactly what this stage is for — open an issue.
 
 ## Pilot Is Live
 
+- **Remote MCP (connect an agent by URL):** `https://audiencescore-mcp.vercel.app/mcp` —
+  Streamable HTTP, no account or API key, read-only `get_score`.
 - Pilot API: `https://api.audiencescore.org`
 - Issuer setup: [docs/pilot/ISSUER-QUICKSTART.md](docs/pilot/ISSUER-QUICKSTART.md)
 - Leave a review: [docs/pilot/LEAVE-A-REVIEW.md](docs/pilot/LEAVE-A-REVIEW.md)
