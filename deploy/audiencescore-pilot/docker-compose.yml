@@ -3,6 +3,8 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile.pilot
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     container_name: audiencescore-pilot
     restart: unless-stopped
     env_file: .env

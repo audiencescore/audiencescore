@@ -1,0 +1,52 @@
+# Cross-host consistency probe.
+#
+# Every public host must serve the same ledger signed by the same rendering
+# key, running the same commit as this repository's head. This is a one-org
+# version of Certificate Transparency's split-view defense: fetch the same
+# signed object from every vantage and refuse to let the views diverge
+# silently. A red run means a host is stale, split, or serving its own key.
+name: Cross-host probe
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: All hosts serve one ledger under one key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare /health identity across hosts
+        run: |
+          set -euo pipefail
+          HOSTS="https://api.audiencescore.org https://mcp.audiencescore.org https://audiencescore-mcp.vercel.app"
+          rm -f fingerprints shas
+          for h in $HOSTS; do
+            body=$(curl -sS --max-time 20 "$h/health")
+            echo "$h -> $body"
+            echo "$body" | jq -e '.ok == true and .env == "pilot"' > /dev/null
+            echo "$body" | jq -r '.signer_fingerprint' >> fingerprints
+            echo "$body" | jq -r '.git_sha' >> shas
+          done
+          [ "$(sort -u fingerprints | wc -l)" -eq 1 ] || { echo "::error::signer fingerprints diverge across hosts"; cat fingerprints; exit 1; }
+          [ "$(sort -u shas | wc -l)" -eq 1 ] || { echo "::error::git_sha diverges across hosts"; cat shas; exit 1; }
+          DEPLOYED=$(sort -u shas)
+          if [ "$DEPLOYED" != "${GITHUB_SHA}" ]; then
+            echo "::error::hosts serve $DEPLOYED but the repository head is ${GITHUB_SHA} — a deploy is stale"
+            exit 1
+          fi
+
+      - name: Compare a fixed-window signed manifest byte-for-byte
+        run: |
+          set -euo pipefail
+          HOSTS="https://api.audiencescore.org https://mcp.audiencescore.org https://audiencescore-mcp.vercel.app"
+          CANARY="/v0/scores/field-elevate-demo%40v1?window_end=2026-07-01T00:00:00.000Z"
+          rm -f digests
+          for h in $HOSTS; do
+            curl -sS --max-time 20 "$h$CANARY" | jq -S . > "response.json"
+            jq -e '.manifest.env == "pilot" and .signer and .sig' response.json > /dev/null
+            sha256sum response.json | cut -d' ' -f1 >> digests
+          done
+          [ "$(sort -u digests | wc -l)" -eq 1 ] || { echo "::error::hosts return different signed manifests for the same offering and window"; cat digests; exit 1; }
+          echo "all hosts agree: $(sort -u digests)"

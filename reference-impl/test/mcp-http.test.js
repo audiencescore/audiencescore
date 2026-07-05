@@ -118,3 +118,86 @@ test('standalone read listener serves v0.2 REST score and evidence routes', asyn
     provider.runtime.close();
   }
 });
+
+test('proxy listener forwards requests to the upstream and returns its response', async () => {
+  const seen = [];
+  const upstream = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      seen.push({ method: req.method, url: req.url, body: raw, headers: req.headers });
+      res.writeHead(201, {
+        'content-type': 'application/json',
+        'mcp-session-id': 'session-from-upstream',
+        'connection': 'keep-alive',
+      });
+      res.end(JSON.stringify({ from: 'upstream' }));
+    });
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const { createProxyListener } = require('../src/mcp-http-server');
+  const proxy = http.createServer(createProxyListener(`http://127.0.0.1:${upstream.address().port}`));
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  try {
+    const res = await fetch(`http://127.0.0.1:${proxy.address().port}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'mcp-session-id': 'client-session',
+        'origin': 'https://audiencescore.org',
+        'proxy-authorization': 'Basic not-for-upstream',
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+    assert.equal(res.status, 201);
+    assert.equal(res.headers.get('mcp-session-id'), 'session-from-upstream');
+    assert.deepEqual(await res.json(), { from: 'upstream' });
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, 'POST');
+    assert.equal(seen[0].url, '/mcp');
+    assert.equal(JSON.parse(seen[0].body).method, 'tools/list');
+    assert.equal(seen[0].headers['mcp-session-id'], 'client-session');
+    assert.equal(seen[0].headers.origin, 'https://audiencescore.org');
+    assert.equal(seen[0].headers['proxy-authorization'], undefined);
+  } finally {
+    proxy.close();
+    upstream.close();
+  }
+});
+
+test('proxy listener passes GET reads through with query strings intact', async () => {
+  const upstream = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ url: req.url }));
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const { createProxyListener } = require('../src/mcp-http-server');
+  const proxy = http.createServer(createProxyListener(`http://127.0.0.1:${upstream.address().port}/`));
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  try {
+    const out = await fetch(`http://127.0.0.1:${proxy.address().port}/v0/scores/x%40v1?window_end=2026-01-01`).then((r) => r.json());
+    assert.equal(out.url, '/v0/scores/x%40v1?window_end=2026-01-01');
+  } finally {
+    proxy.close();
+    upstream.close();
+  }
+});
+
+test('proxy listener fails closed with 502 when the upstream is unreachable — never fabricates data', async () => {
+  const dead = http.createServer(() => {});
+  await new Promise((resolve) => dead.listen(0, '127.0.0.1', resolve));
+  const port = dead.address().port;
+  await new Promise((resolve) => dead.close(resolve));
+  const { createProxyListener } = require('../src/mcp-http-server');
+  const proxy = http.createServer(createProxyListener(`http://127.0.0.1:${port}`));
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  try {
+    const res = await fetch(`http://127.0.0.1:${proxy.address().port}/v0/scores/x%40v1`);
+    assert.equal(res.status, 502);
+    const body = await res.json();
+    assert.equal(body.error, 'upstream pilot server unreachable');
+    assert.equal(body.env, 'pilot');
+  } finally {
+    proxy.close();
+  }
+});

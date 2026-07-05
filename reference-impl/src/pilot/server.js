@@ -97,7 +97,13 @@ function createServer(runtime = new PilotRuntime()) {
       const parts = url.pathname.split('/').filter(Boolean);
 
       if (req.method === 'GET' && url.pathname === '/health') {
-        return json(res, 200, { ok: true, env: 'pilot' });
+        return json(res, 200, {
+          ok: true,
+          env: 'pilot',
+          signer: runtime.renderingSigner(),
+          signer_fingerprint: runtime.signerFingerprint(),
+          git_sha: process.env.AUDIENCESCORE_GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null,
+        });
       }
       if (req.method === 'GET' && url.pathname === '/docs/copy-to-llm') {
         return text(res, 200, copyToLlm(runtime));

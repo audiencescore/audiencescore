@@ -14,6 +14,11 @@ COPY score-spec/ ./score-spec/
 COPY spec/ ./spec/
 COPY conformance/CANONICAL.md ./conformance/CANONICAL.md
 
+# Stamped at build so /health can expose which commit is serving; the
+# cross-host probe compares this against the repo head to catch stale deploys.
+ARG GIT_SHA=unknown
+ENV AUDIENCESCORE_GIT_SHA=$GIT_SHA
+
 ENV AUDIENCESCORE_DATA_DIR=/data \
     AUDIENCESCORE_DB_PATH=/data/pilot.sqlite \
     AUDIENCESCORE_KEYS_DIR=/data/keys \

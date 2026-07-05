@@ -132,6 +132,23 @@ record / marketplace co-attestation model (spec §4, F9) is unaffected — the
 *issuer* is the provider of record; a marketplace co-attests via `coattest`,
 it does not become the issuer.
 
+**D-13 — The hosted read host briefly served an independent demo ledger under
+its own key.** The connect-by-URL launch deployed the read API to a serverless
+host while the pilot server's public hostname had no DNS yet, so the serverless
+function was built as a self-contained "zero-dependency read path": its own
+empty per-instance ledger and its own rendering key. That expedient was never
+recorded here, and a later commit titled "route hosted read API through pilot
+server" unified only the *code path*, not the *data or key*, leaving two public
+hosts that would have disagreed the moment the first real receipt landed.
+**Resolution:** the serverless entry is now a thin fail-closed reverse proxy to
+the pilot server (`AUDIENCESCORE_UPSTREAM_BASE_URL`); one rendering key exists,
+held by the pilot server; `/health` on every host exposes the signer, its
+SHA-256 fingerprint, and the serving commit; and a scheduled cross-host probe
+(`.github/workflows/cross-host-probe.yml`) fails red if any public host ever
+diverges in key, code, or signed content again. Standalone mode (no upstream
+configured) remains for local development and other operators, clearly labeled
+as a per-instance demo ledger.
+
 ## What was checked and found NOT to be drift
 
 - The seven invariants (I-1..I-7), the threat register (T-1..T-10), roles,

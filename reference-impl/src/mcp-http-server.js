@@ -54,7 +54,13 @@ function createRequestListener(server = buildServer()) {
     const path = url.pathname;
     if (req.method === 'GET' && path === '/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, env: 'pilot' }));
+      return res.end(JSON.stringify({
+        ok: true,
+        env: 'pilot',
+        signer: server.runtime.renderingSigner(),
+        signer_fingerprint: server.runtime.signerFingerprint(),
+        git_sha: process.env.AUDIENCESCORE_GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null,
+      }));
     }
     if (req.method === 'GET' && path.startsWith('/v0/scores/')) {
       try {
@@ -82,6 +88,56 @@ function createRequestListener(server = buildServer()) {
   };
 }
 
+// Headers that must not be forwarded by a proxy (hop-by-hop), plus encoding
+// headers: fetch transparently decompresses upstream bodies, so forwarding
+// content-encoding/content-length with the decompressed bytes would corrupt
+// the response. accept-encoding is dropped from requests for the same reason.
+const NO_FORWARD = new Set([
+  'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+  'te', 'trailer', 'transfer-encoding', 'upgrade', 'host',
+  'content-length', 'content-encoding', 'accept-encoding',
+]);
+
+// Thin reverse proxy to the pilot server that owns the ledger and the
+// rendering key, so every hosted read serves origin truth signed by one key.
+// Fail-closed: if the origin is unreachable, answer 502 with an honest error —
+// never fall back to locally fabricated data. MCP responses in this
+// implementation are complete JSON bodies (no SSE streams), so buffering the
+// upstream body is lossless.
+function createProxyListener(upstreamBaseUrl, { timeoutMs = 25000 } = {}) {
+  const base = String(upstreamBaseUrl).replace(/\/+$/, '');
+  return async (req, res) => {
+    const headers = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value !== undefined && !NO_FORWARD.has(key.toLowerCase())) headers[key] = value;
+    }
+    const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await readBody(req);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const upstream = await fetch(base + (req.url || '/'), {
+        method: req.method,
+        headers,
+        body: body || undefined,
+        signal: controller.signal,
+        redirect: 'manual',
+      });
+      const outHeaders = {};
+      upstream.headers.forEach((value, key) => {
+        if (!NO_FORWARD.has(key)) outHeaders[key] = value;
+      });
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.writeHead(upstream.status, outHeaders);
+      res.end(buf);
+    } catch {
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'upstream pilot server unreachable', env: 'pilot' }));
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 if (require.main === module) {
   const listener = createRequestListener(buildServer());
   const port = Number(process.env.PORT || 8080);
@@ -90,4 +146,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { buildServer, createRequestListener };
+module.exports = { buildServer, createRequestListener, createProxyListener };

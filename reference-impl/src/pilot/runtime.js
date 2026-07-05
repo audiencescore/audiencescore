@@ -299,6 +299,16 @@ class PilotRuntime {
     this.store.close();
   }
 
+  // The one public identity every hosted read serves under. /health exposes it
+  // (and its SHA-256 fingerprint) so a cross-host probe can catch key drift.
+  renderingSigner() {
+    return publicKeyToString(this.renderingKey.publicKey);
+  }
+
+  signerFingerprint() {
+    return crypto.createHash('sha256').update(this.renderingSigner(), 'utf8').digest('hex');
+  }
+
   #migratePilotSchema() {
     ensureColumn(this.store.db, 'pilot_webhook_events', 'event_time', 'TEXT');
     ensureColumn(this.store.db, 'pilot_txn_registry', 'amount_cents', 'INTEGER');

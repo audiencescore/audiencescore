@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The hosted read API is now a thin fail-closed reverse proxy to the pilot
+  server (set `AUDIENCESCORE_UPSTREAM_BASE_URL`), so every public host serves
+  the same ledger signed by the same rendering key; with the origin down it
+  answers 502 rather than fabricating data (DRIFT D-13).
+- `/health` now exposes the rendering signer, its SHA-256 fingerprint, and the
+  serving commit, and a scheduled cross-host probe fails if public hosts ever
+  diverge in key, code, or signed content.
+
 - Pilot ingestion now quarantines canonical-key conflicts and no-rail surrogate
   ambiguities instead of silently corroborating or minting.
 - Partner `/v1/transactions` writes now require signed, timestamped, nonce-bound

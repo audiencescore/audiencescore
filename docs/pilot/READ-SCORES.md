@@ -79,3 +79,14 @@ curl -s -X POST "https://mcp.audiencescore.org/mcp" \
 The tool returns the same signed pilot manifest as the REST endpoint. The
 companion `get_score_evidence` tool returns the de-identified recomputation
 input for the same `window_end`.
+
+## One key, every host
+
+All public read hosts proxy the same pilot server, so every response is signed
+by one pilot rendering key. `GET /health` on any host returns that key
+(`signer`), its SHA-256 fingerprint (`signer_fingerprint`), and the commit the
+host is serving (`git_sha`); the published key set lives at
+`https://audiencescore.org/.well-known/audiencescore-keys.json`. Verify a
+response's `signer` against that published set rather than trusting the
+embedded key alone. A scheduled cross-host probe fails publicly if any host
+ever diverges.
