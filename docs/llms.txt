@@ -64,6 +64,6 @@ URL in any MCP client — no account, no API key, read-only:
 ## Governance and policy
 
 - [Governance constitution](https://github.com/audiencescore/audiencescore/blob/main/GOVERNANCE.md): the open-forever guarantees and sealed-admission accountability
-- [Architecture overview](https://github.com/audiencescore/audiencescore/blob/main/docs/architecture.md)
+- [Architecture overview (archived v0.1)](https://github.com/audiencescore/audiencescore/blob/main/docs/archive/architecture.md)
 - [Prior art and comparisons](https://github.com/audiencescore/audiencescore/blob/main/docs/prior-art.md)
 - [Contributing](https://github.com/audiencescore/audiencescore/blob/main/CONTRIBUTING.md): RFC process for spec changes, DCO for code

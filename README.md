@@ -91,7 +91,7 @@ cd reference-impl && npm ci && npm test
 
 For the superseded v0.1 agent-flow walkthrough — how a complaint to your
 assistant becomes a signed, receipt-gated verdict without a form ever
-existing — see [How a review actually happens](docs/how-a-review-happens.md).
+existing — see [How a review actually happens](docs/archive/how-a-review-happens.md).
 
 ## The attestation ladder
 

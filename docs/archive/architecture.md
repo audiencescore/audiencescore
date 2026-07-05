@@ -1,5 +1,11 @@
 # Architecture Overview
 
+> **ARCHIVED 2026-07-05:** superseded by
+> [spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md)
+> and
+> [rendering v1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/rendering-v1.md).
+> Kept for history; do not follow.
+
 > **Status.** This page describes the superseded v0.1 architecture. The
 > normative protocol is now
 > [spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md);

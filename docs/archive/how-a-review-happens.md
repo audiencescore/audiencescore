@@ -1,5 +1,11 @@
 # How a review actually happens
 
+> **ARCHIVED 2026-07-05:** superseded by
+> [spec v0.2a](https://github.com/audiencescore/audiencescore/blob/main/spec/SPEC-v0.2a.md)
+> and the current pilot docs in
+> [docs/pilot/](https://github.com/audiencescore/audiencescore/tree/main/docs/pilot).
+> Kept for history; do not follow.
+
 There is no form. Nobody sits down to "write a review" in this protocol — no
 star box, no text field, no "rate your experience" email. **The form is dead.
 The agent is the input mechanism.**
