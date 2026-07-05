@@ -41,9 +41,13 @@ critique of the spec is exactly what this stage is for — open an issue.
 
 ## Pilot Is Live
 
-- **Remote MCP (connect an agent by URL):** `https://audiencescore-mcp.vercel.app/mcp` —
-  Streamable HTTP, no account or API key, read-only `get_score`.
-- Pilot API: `https://api.audiencescore.org`
+- **Remote MCP (connect an agent by URL):** `https://mcp.audiencescore.org/mcp` —
+  Streamable HTTP, no account or API key, read-only `get_score` and
+  `get_score_evidence` over v0.2 rendering manifests.
+- Hosted read API: `https://mcp.audiencescore.org/v0/scores/{offering}` and
+  `/evidence` on the same host. Issuer/write API deployments run the pilot
+  server from `reference-impl/src/pilot/server.js` and must configure their own
+  public base URL.
 - Issuer setup: [docs/pilot/ISSUER-QUICKSTART.md](docs/pilot/ISSUER-QUICKSTART.md)
 - Leave a review: [docs/pilot/LEAVE-A-REVIEW.md](docs/pilot/LEAVE-A-REVIEW.md)
 - Read scores: [docs/pilot/READ-SCORES.md](docs/pilot/READ-SCORES.md)

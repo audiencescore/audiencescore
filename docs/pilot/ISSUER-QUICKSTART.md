@@ -74,10 +74,11 @@ delivery facets.
 
 ## Step 4: Configure The Webhook
 
-In Stripe test mode, add an endpoint:
+In Stripe test mode, add an endpoint using the pilot operator's configured write
+API base URL:
 
 ```text
-https://api.audiencescore.org/v0/stripe/webhook
+{issuer_write_base_url}/v0/stripe/webhook
 ```
 
 Events:

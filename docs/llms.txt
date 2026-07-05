@@ -12,12 +12,13 @@
 > crypto review, per-vertical legal review). The pilot ledger may be reset and
 > receipts re-issued after the audit.
 
-Key facts for agents: scores are distributed as Ed25519-signed manifests
-carrying spec version, sample size, locality, a Wilson 95% lower bound, and
-a provenance hash of the exact event set used — verify the signature and,
-if you mirror the log, recompute the number; trusting the server is never
-required. The hosted pilot API exposes REST reads and an HTTP JSON-RPC `get_score`
-tool. Reading scores requires no account or API key. Score math is open
+Key facts for agents: scores are distributed as Ed25519-signed rendering v1
+manifests carrying `env: "pilot"`, k-anonymity status, dual all-verified and
+completer views, sample mix, and issuer disclosures. Fetch de-identified
+evidence for the same `window_end`, recompute rendering v1, and verify the
+signature; trusting the server is never required. The hosted read API exposes
+REST reads and Streamable HTTP MCP tools. Reading scores requires no account or
+API key. Score math is open
 forever by constitution; only operator-side admission (anti-fraud) checks
 may be sealed, under hash-commit-then-reveal accountability.
 
@@ -26,18 +27,18 @@ may be sealed, under hash-commit-then-reveal accountability.
 A live, public MCP server speaking Streamable HTTP (spec 2025-06-18). Add it by
 URL in any MCP client — no account, no API key, read-only:
 
-- MCP endpoint: `https://audiencescore-mcp.vercel.app/mcp`
-- Tool: `get_score(vendor_id[, state])` → an Ed25519-signed manifest (percent
-  verified thumbs-up, Wilson 95% lower bound, sample size, provenance hash) the
-  caller verifies and recomputes from public data. Pilot deployment,
-  pre-cryptographic-audit; with no verified reviews yet a vendor returns
-  `displayed: false` rather than a fabricated number.
-- One-line handshake: `curl -s -X POST https://audiencescore-mcp.vercel.app/mcp -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_score","arguments":{"vendor_id":"<vendor>"}}}'`
+- MCP endpoint: `https://mcp.audiencescore.org/mcp`
+- Tool: `get_score(offering[, window_end])` → an Ed25519-signed rendering v1
+  manifest. `get_score_evidence(offering[, window_end])` returns the
+  de-identified input needed to recompute it. Pilot deployment,
+  pre-cryptographic-audit; below the k-anonymity floor a score returns
+  `published: false` rather than a fabricated number.
+- One-line call: `curl -s -X POST https://mcp.audiencescore.org/mcp -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_score","arguments":{"offering":"field-elevate-demo@v1"}}}'`
 
 ## Pilot API
 
-- [Pilot API](https://api.audiencescore.org): hosted pilot, not production
-- [Copy to LLM](https://api.audiencescore.org/docs/copy-to-llm): paste-ready agent integration brief
+- [Hosted read API](https://mcp.audiencescore.org): hosted pilot reads, not production
+- [Copy to LLM](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/COPY-TO-LLM.md): paste-ready agent integration brief
 - [Issuer quickstart](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/ISSUER-QUICKSTART.md): merchant setup
 - [Leave a review](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/LEAVE-A-REVIEW.md): customer and agent review submission
 - [Read scores](https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/READ-SCORES.md): get_score, verification, recomputation
@@ -52,13 +53,13 @@ URL in any MCP client — no account, no API key, read-only:
 - [Event spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/event-spec.md) (superseded by spec v0.2a; retained): signed, hash-chained verdict events
 - [Receipt spec (v0.1)](https://github.com/audiencescore/audiencescore/blob/main/protocol/receipt-spec.md) (superseded by spec v0.2a; retained): proof tiers and single-use review rights
 - [Score spec v0.1](https://github.com/audiencescore/audiencescore/blob/main/score-spec/score-spec-v0.1.md) (superseded by spec v0.2a; retained): the v0.1 score math
-- [Pilot API OpenAPI](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): hosted pilot REST and MCP HTTP JSON-RPC paths
+- [Pilot API OpenAPI](https://github.com/audiencescore/audiencescore/blob/main/protocol/openapi.json): pilot REST and MCP HTTP JSON-RPC paths
 - Historical permalink for the superseded v0.1.0 tag: [v0.1.0 tag](https://github.com/audiencescore/audiencescore/tree/v0.1.0)
 
 ## Reference implementation
 
-- [Overview and quickstart](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/README.md): zero-dependency Node.js; `node reference-impl/demo.js` runs receipt → verdict → score → MCP query end to end
-- [MCP server](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/src/mcp-server.js): JSON-RPC 2.0 over stdio, `get_score` returns a signed manifest
+- [Overview and quickstart](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/README.md): Node.js reference implementation and acceptance tests
+- [Streamable HTTP MCP server](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/src/mcp-http-server.js): v0.2 pilot `get_score` and `get_score_evidence`
 
 ## Governance and policy
 

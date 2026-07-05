@@ -28,7 +28,7 @@ The pilot will reject duplicate reviews from the same receipt.
 Your AI agent can submit directly:
 
 ```sh
-curl -s -X POST "https://api.audiencescore.org/v0/reviews" \
+curl -s -X POST "{issuer_write_base_url}/v0/reviews" \
   -H "content-type: application/json" \
   --data @review.json
 ```
@@ -66,7 +66,9 @@ event.
 
 ## What Agents Need To Know
 
-- Base URL: `https://api.audiencescore.org`
+- Hosted read base URL: `https://mcp.audiencescore.org`
+- Issuer/write base URL: configured by the pilot operator when deploying
+  `reference-impl/src/pilot/server.js`
 - Submit review: `POST /v0/reviews`
 - Read score: `GET /v0/scores/{offering}`
 - Copy-to-LLM brief: `GET /docs/copy-to-llm`

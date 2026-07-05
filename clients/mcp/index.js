@@ -8,7 +8,7 @@
 
 const readline = require('node:readline');
 
-const ENDPOINT = process.env.AUDIENCESCORE_MCP_URL || 'https://audiencescore-mcp.vercel.app/mcp';
+const ENDPOINT = process.env.AUDIENCESCORE_MCP_URL || 'https://mcp.audiencescore.org/mcp';
 
 async function forward(message) {
   const res = await fetch(ENDPOINT, {

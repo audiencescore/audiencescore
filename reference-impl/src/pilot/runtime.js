@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const crypto = require('node:crypto');
 const { Store } = require('../v02/store');
 const { uuidv7, verifyReceipt } = require('../v02/receipts');
@@ -11,7 +12,8 @@ const { coattestReceipt } = require('../v02/signing');
 const { renderOffering } = require('../v02/rendering');
 const { generateHolderRoot, generateSalt, deriveHolderKeyPair, holderBinding } = require('../v02/holder');
 const { loadOrCreatePayloadKey, createIssuerKey, loadIssuerKey, createPartnerKey, loadPartnerKey, ensureDir } = require('./keyring');
-const { canonicalTxnKey } = require('./canonical-txn');
+const { canonicalTxnKey, customerHash } = require('./canonical-txn');
+const { verifyPartnerRequest, DEFAULT_TOLERANCE_MS } = require('./partner-auth');
 const { deliverReceiptEmail } = require('./email');
 const { verifyStripeWebhook, eventToTransaction } = require('./stripe');
 const { verifySquareWebhook, eventToTransaction: squareEventToTransaction } = require('./square');
@@ -63,6 +65,7 @@ CREATE TABLE IF NOT EXISTS pilot_webhook_events (
   event_id TEXT NOT NULL,
   issuer_id TEXT,
   status TEXT NOT NULL,
+  event_time TEXT,
   received_at TEXT NOT NULL,
   PRIMARY KEY (provider, event_id)
 );
@@ -89,6 +92,11 @@ CREATE TABLE IF NOT EXISTS pilot_txn_registry (
   offering TEXT NOT NULL,
   minted_by TEXT NOT NULL,
   basis TEXT NOT NULL,
+  amount_cents INTEGER,
+  currency TEXT,
+  occurred_at TEXT,
+  customer_hash TEXT,
+  source_txn_ref TEXT,
   first_seen_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS pilot_corroborations (
@@ -101,6 +109,22 @@ CREATE TABLE IF NOT EXISTS pilot_corroborations (
   kind TEXT NOT NULL,
   coattest TEXT,
   logged_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pilot_txn_conflicts (
+  conflict_id TEXT PRIMARY KEY,
+  tx_canonical_key TEXT NOT NULL,
+  receipt_id TEXT,
+  source_partner_id TEXT NOT NULL,
+  conflict_type TEXT NOT NULL,
+  existing_facts TEXT NOT NULL,
+  incoming_facts TEXT NOT NULL,
+  logged_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pilot_partner_nonces (
+  partner_id TEXT NOT NULL,
+  nonce TEXT NOT NULL,
+  seen_at TEXT NOT NULL,
+  PRIMARY KEY (partner_id, nonce)
 );
 -- A delivery lock, not a record: holding a row means "the review link for this
 -- transaction is sent or in flight." The authoritative delivery lives in
@@ -125,6 +149,14 @@ CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_update BEFORE UPDATE ON pil
 BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_corroborations'); END;
 CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_delete BEFORE DELETE ON pilot_corroborations
 BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_corroborations'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_txn_conflicts_no_update BEFORE UPDATE ON pilot_txn_conflicts
+BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_txn_conflicts'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_txn_conflicts_no_delete BEFORE DELETE ON pilot_txn_conflicts
+BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_txn_conflicts'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_partner_nonces_no_update BEFORE UPDATE ON pilot_partner_nonces
+BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_partner_nonces'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_partner_nonces_no_delete BEFORE DELETE ON pilot_partner_nonces
+BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_partner_nonces'); END;
 CREATE TRIGGER IF NOT EXISTS pilot_events_no_update BEFORE UPDATE ON pilot_events
 BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_events'); END;
 CREATE TRIGGER IF NOT EXISTS pilot_events_no_delete BEFORE DELETE ON pilot_events
@@ -132,7 +164,8 @@ BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_events'); END;
 `;
 
 function defaultConfig(overrides = {}) {
-  const dataDir = overrides.dataDir || process.env.AUDIENCESCORE_DATA_DIR || path.join(process.cwd(), '.audiencescore-pilot');
+  const defaultDataDir = process.env.VERCEL ? path.join(os.tmpdir(), 'audiencescore-pilot') : path.join(process.cwd(), '.audiencescore-pilot');
+  const dataDir = overrides.dataDir || process.env.AUDIENCESCORE_DATA_DIR || defaultDataDir;
   const keysDir = overrides.keysDir || process.env.AUDIENCESCORE_KEYS_DIR || path.join(dataDir, 'keys');
   return {
     env: PILOT_ENV,
@@ -157,6 +190,15 @@ function defaultConfig(overrides = {}) {
     quickbooksVerifierToken: overrides.quickbooksVerifierToken || process.env.AUDIENCESCORE_QUICKBOOKS_VERIFIER_TOKEN,
     quickbooksPartnerId: overrides.quickbooksPartnerId || process.env.AUDIENCESCORE_QUICKBOOKS_PARTNER_ID || 'quickbooks',
     quickbooksEnrich: overrides.quickbooksEnrich || null,
+    webhookToleranceMs: Number(overrides.webhookToleranceMs || process.env.AUDIENCESCORE_WEBHOOK_TOLERANCE_MS || DEFAULT_TOLERANCE_MS),
+    partnerToleranceMs: Number(overrides.partnerToleranceMs || process.env.AUDIENCESCORE_PARTNER_TOLERANCE_MS || DEFAULT_TOLERANCE_MS),
+    allowedOrigins: overrides.allowedOrigins || parseListEnv(process.env.AUDIENCESCORE_ALLOWED_ORIGINS, [
+      'https://audiencescore.org',
+      'https://mcp.audiencescore.org',
+      'https://audiencescore-mcp.vercel.app',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080',
+    ]),
     port: Number(overrides.port || process.env.PORT || 8080),
   };
 }
@@ -168,6 +210,11 @@ function parseJsonEnv(value, fallback) {
   } catch (err) {
     throw new Error(`invalid JSON environment value: ${err.message}`);
   }
+}
+
+function parseListEnv(value, fallback) {
+  if (!value) return fallback;
+  return value.split(',').map((v) => v.trim()).filter(Boolean);
 }
 
 function sha256(text) {
@@ -183,6 +230,25 @@ function randomHolderBinding(issuerPublicHex) {
   const salt = generateSalt();
   const derived = deriveHolderKeyPair(root, issuerPublicHex);
   return holderBinding(derived.publicHex, salt);
+}
+
+function assertFreshTimestamp(value, label, toleranceMs, now = Date.now()) {
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) throw new Error(`${label} timestamp is missing or invalid`);
+  if (Math.abs(now - ts) > toleranceMs) throw new Error(`${label} timestamp is outside the replay window`);
+  return new Date(ts).toISOString();
+}
+
+function maybeLower(value) {
+  return value == null ? null : String(value).trim().toLowerCase();
+}
+
+function tableColumns(db, table) {
+  return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+}
+
+function ensureColumn(db, table, name, definition) {
+  if (!tableColumns(db, table).has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
 }
 
 function receiptFromStoredRow(row) {
@@ -224,12 +290,22 @@ class PilotRuntime {
     ensureDir(this.config.outboxDir);
     this.store = new Store(this.config.dbPath);
     this.store.db.exec(PILOT_SCHEMA);
+    this.#migratePilotSchema();
     this.renderingKey = loadOrCreatePayloadKey(this.config.keysDir, 'pilot-rendering');
     this.eventKey = loadOrCreatePayloadKey(this.config.keysDir, 'pilot-events');
   }
 
   close() {
     this.store.close();
+  }
+
+  #migratePilotSchema() {
+    ensureColumn(this.store.db, 'pilot_webhook_events', 'event_time', 'TEXT');
+    ensureColumn(this.store.db, 'pilot_txn_registry', 'amount_cents', 'INTEGER');
+    ensureColumn(this.store.db, 'pilot_txn_registry', 'currency', 'TEXT');
+    ensureColumn(this.store.db, 'pilot_txn_registry', 'occurred_at', 'TEXT');
+    ensureColumn(this.store.db, 'pilot_txn_registry', 'customer_hash', 'TEXT');
+    ensureColumn(this.store.db, 'pilot_txn_registry', 'source_txn_ref', 'TEXT');
   }
 
   createIssuer({ issuerId, name, stripeAccount = null, emailFrom = null }) {
@@ -296,12 +372,12 @@ class PilotRuntime {
       throw new Error('partner_id must be lowercase letters, numbers, underscore, or hyphen');
     }
     const key = createPartnerKey(this.config.keysDir, partnerId);
-    const secret = randomToken();
+    const disabledSecret = randomToken();
     this.store.db.prepare(
       'INSERT INTO pilot_partners (partner_id, name, kind, public_hex, auth_hash, scopes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).run(partnerId, name, kind, key.publicHex, sha256(secret), JSON.stringify(scopes), new Date().toISOString());
+    ).run(partnerId, name, kind, key.publicHex, sha256(`disabled:${disabledSecret}`), JSON.stringify(scopes), new Date().toISOString());
     this.signPilotEvent('partner_registered', { partner_id: partnerId, kind, public_hex: key.publicHex });
-    return { partnerId, name, kind, publicHex: key.publicHex, secret, scopes };
+    return { partnerId, name, kind, publicHex: key.publicHex, keyPath: key.keyPath, scopes };
   }
 
   getPartner(partnerId) {
@@ -322,11 +398,23 @@ class PilotRuntime {
     return { partnerId, issuerId, connectedAccountRef };
   }
 
-  authenticatePartner(partnerId, secret) {
+  authenticateSignedPartner({ partnerId, method, path, rawBody, timestamp, nonce, signature }) {
     const row = this.getPartner(partnerId);
-    const a = Buffer.from(sha256(String(secret ?? '')), 'hex');
-    const b = Buffer.from(row.auth_hash, 'hex');
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) throw new Error('partner authentication failed');
+    verifyPartnerRequest(row, {
+      method,
+      path,
+      body: rawBody,
+      timestamp,
+      nonce,
+      signature,
+    }, { toleranceMs: this.config.partnerToleranceMs });
+    try {
+      this.store.db.prepare(
+        'INSERT INTO pilot_partner_nonces (partner_id, nonce, seen_at) VALUES (?, ?, ?)',
+      ).run(row.partner_id, String(nonce), new Date().toISOString());
+    } catch {
+      throw new Error('partner request nonce has already been used');
+    }
     return row;
   }
 
@@ -349,6 +437,61 @@ class PilotRuntime {
       'SELECT 1 FROM pilot_partner_issuer_links WHERE partner_id = ? AND issuer_id = ?',
     ).get(partner.partner_id, issuerId);
     if (!link) throw new Error(`partner ${partner.partner_id} is not authorized to issue for ${issuerId}`);
+  }
+
+  transactionFacts({ canonicalKey, basis, issuerId, offering, sourceId, event }) {
+    return {
+      tx_canonical_key: canonicalKey,
+      basis,
+      issuer_id: issuerId,
+      offering,
+      source_partner_id: sourceId,
+      source_txn_ref: event.processorTxnId || null,
+      amount_cents: event.amountCents != null ? Number(event.amountCents) : null,
+      currency: maybeLower(event.currency),
+      occurred_at: event.occurredAt || null,
+      customer_hash: customerHash(event.customerEmail || null),
+      kind: event.kind || 'transaction',
+    };
+  }
+
+  conflictingFields(existing, incoming) {
+    const out = [];
+    for (const field of ['issuer_id', 'offering', 'amount_cents', 'currency']) {
+      const a = existing[field];
+      const b = incoming[field];
+      if (a !== null && a !== undefined && b !== null && b !== undefined && String(a) !== String(b)) out.push(field);
+    }
+    return out;
+  }
+
+  logTxnConflict({ conflictType, existing = null, incoming, sourceId }) {
+    const conflictId = uuidv7();
+    this.store.db.prepare(
+      'INSERT INTO pilot_txn_conflicts (conflict_id, tx_canonical_key, receipt_id, source_partner_id, conflict_type, existing_facts, incoming_facts, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(conflictId, incoming.tx_canonical_key, existing?.receipt_id ?? null, sourceId, conflictType,
+      JSON.stringify(existing ?? null), JSON.stringify(incoming), new Date().toISOString());
+    const event = this.signPilotEvent('transaction_conflict', {
+      conflict_id: conflictId,
+      tx_canonical_key: incoming.tx_canonical_key,
+      conflict_type: conflictType,
+      source: sourceId,
+    });
+    return { conflictId, event };
+  }
+
+  findSurrogateAmbiguity(incoming) {
+    if (incoming.basis !== 'surrogate' || !incoming.occurred_at) return null;
+    return this.store.db.prepare(
+      `SELECT * FROM pilot_txn_registry
+        WHERE issuer_id = ?
+          AND basis = 'surrogate'
+          AND amount_cents = ?
+          AND currency = ?
+          AND customer_hash = ?
+          AND ABS(strftime('%s', occurred_at) - strftime('%s', ?)) <= 3600
+        ORDER BY first_seen_at LIMIT 1`,
+    ).get(incoming.issuer_id, incoming.amount_cents, incoming.currency, incoming.customer_hash, incoming.occurred_at);
   }
 
   // ---- ingestion spine: one path for every source --------------------------
@@ -417,27 +560,51 @@ class PilotRuntime {
     }
     const occurredAt = event.occurredAt || new Date().toISOString();
     const customerEmail = event.customerEmail || null;
-    const { key: canonicalKey, basis } = canonicalTxnKey({
+    const keyResult = canonicalTxnKey({
       issuerId, rail: event.rail, processorTxnId: event.processorTxnId,
       amountCents, currency: event.currency, occurredAt, customerContact: customerEmail,
     });
+    const { key: canonicalKey, basis } = keyResult;
     const sourceId = partner ? partner.partner_id : 'manual';
+    const incomingFacts = this.transactionFacts({ canonicalKey, basis, issuerId, offering, sourceId, event: { ...event, occurredAt, customerEmail } });
     const existing = this.store.db.prepare(
       'SELECT * FROM pilot_txn_registry WHERE tx_canonical_key = ?',
     ).get(canonicalKey);
 
     if (event.kind === 'reversal') {
       if (!existing) return { status: 'reversal_no_match', canonicalKey };
+      const conflicts = this.conflictingFields(existing, incomingFacts);
+      if (conflicts.length > 0) {
+        const logged = this.logTxnConflict({ conflictType: `reversal_conflict:${conflicts.join(',')}`, existing, incoming: incomingFacts, sourceId });
+        return { status: 'conflict', canonicalKey, conflict: logged };
+      }
       return this.corroborate({ existing, canonicalKey, partner, sourceId, event, kind: 'reversed', issuerId, offering, customerEmail: null });
     }
     if (existing) {
+      if (basis === 'surrogate') {
+        const logged = this.logTxnConflict({ conflictType: 'surrogate_ambiguous_match', existing, incoming: incomingFacts, sourceId });
+        return { status: 'ambiguous', canonicalKey, conflict: logged };
+      }
+      const conflicts = this.conflictingFields(existing, incomingFacts);
+      if (conflicts.length > 0) {
+        const logged = this.logTxnConflict({ conflictType: `canonical_key_conflict:${conflicts.join(',')}`, existing, incoming: incomingFacts, sourceId });
+        return { status: 'conflict', canonicalKey, conflict: logged };
+      }
       return this.corroborate({ existing, canonicalKey, partner, sourceId, event, kind: 'corroborates', issuerId, offering, customerEmail });
+    }
+    const ambiguous = this.findSurrogateAmbiguity(incomingFacts);
+    if (ambiguous) {
+      const logged = this.logTxnConflict({ conflictType: 'surrogate_near_match', existing: ambiguous, incoming: incomingFacts, sourceId });
+      return { status: 'ambiguous', canonicalKey, conflict: logged };
     }
 
     const { receipt, issuerMeta } = this.mintReceipt({ issuerId, offering, role, amountCents, txId: canonicalKey, occurredAt });
     this.store.db.prepare(
-      'INSERT INTO pilot_txn_registry (tx_canonical_key, receipt_id, issuer_id, offering, minted_by, basis, first_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).run(canonicalKey, receipt.receipt_id, issuerId, offering, sourceId, basis, new Date().toISOString());
+      `INSERT INTO pilot_txn_registry
+        (tx_canonical_key, receipt_id, issuer_id, offering, minted_by, basis, amount_cents, currency, occurred_at, customer_hash, source_txn_ref, first_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(canonicalKey, receipt.receipt_id, issuerId, offering, sourceId, basis, incomingFacts.amount_cents, incomingFacts.currency,
+      incomingFacts.occurred_at, incomingFacts.customer_hash, incomingFacts.source_txn_ref, new Date().toISOString());
     const { claimUrl } = this.createClaim(receipt.receipt_id);
     const delivery = await this.deliverOnce(canonicalKey, { issuerMeta, issuerId, offering, receipt, claimUrl, customerEmail, externalRef: event.processorTxnId || null });
     const evt = this.signPilotEvent('receipt_issued', {
@@ -484,7 +651,9 @@ class PilotRuntime {
     // Verify the signature before parsing, filtering, or writing anything —
     // an unsigned body must never touch the database (no bookkeeping row, no
     // event-id reservation that could pre-empt a later legitimate event).
-    const verifiedIssuerId = verifyStripeWebhook(rawBody, signatureHeader, this.config.stripeWebhookSecrets);
+    const verifiedIssuerId = verifyStripeWebhook(rawBody, signatureHeader, this.config.stripeWebhookSecrets, {
+      toleranceSeconds: Math.floor(this.config.webhookToleranceMs / 1000),
+    });
     const event = JSON.parse(rawBody);
     if (!['checkout.session.completed', 'invoice.paid'].includes(event.type)) {
       return { status: 'ignored', event_id: event.id, type: event.type };
@@ -492,19 +661,20 @@ class PilotRuntime {
     const tx = eventToTransaction(event, verifiedIssuerId);
     if (tx.issuerId !== verifiedIssuerId) throw new Error('Stripe metadata issuer does not match verified webhook secret');
     if (this.webhookSeen('stripe', event.id)) return { status: 'duplicate', event_id: event.id };
+    const eventTime = tx.occurredAt;
     const res = await this.ingestTransaction({
       issuerId: tx.issuerId, offering: tx.offering, role: tx.role, amountCents: tx.amountCents,
       rail: 'stripe', processorTxnId: tx.externalRef, currency: 'usd',
       occurredAt: tx.occurredAt, customerEmail: tx.customerEmail, kind: 'transaction',
     }, { partner: null });
-    this.recordWebhookEvent('stripe', event.id, tx.issuerId, res.status);
+    this.recordWebhookEvent('stripe', event.id, tx.issuerId, res.status, eventTime);
     return { status: res.status === 'minted' ? 'issued' : res.status, event_id: event.id, receipt: res.receipt, claim_url: res.claimUrl };
   }
 
-  recordWebhookEvent(provider, eventId, issuerId, status) {
+  recordWebhookEvent(provider, eventId, issuerId, status, eventTime = null) {
     this.store.db.prepare(
-      'INSERT OR IGNORE INTO pilot_webhook_events (provider, event_id, issuer_id, status, received_at) VALUES (?, ?, ?, ?, ?)',
-    ).run(provider, eventId ?? uuidv7(), issuerId, status, new Date().toISOString());
+      'INSERT OR IGNORE INTO pilot_webhook_events (provider, event_id, issuer_id, status, event_time, received_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(provider, eventId ?? uuidv7(), issuerId, status, eventTime, new Date().toISOString());
   }
 
   webhookSeen(provider, eventId) {
@@ -544,14 +714,15 @@ class PilotRuntime {
     if (this.webhookSeen('square', event.event_id)) return { status: 'duplicate', event_id: event.event_id };
     const normalized = squareEventToTransaction(event);
     if (!normalized) {
-      this.recordWebhookEvent('square', event.event_id, null, 'ignored');
+      this.recordWebhookEvent('square', event.event_id, null, 'ignored', event.created_at ?? null);
       return { status: 'ignored', event_id: event.event_id, type: event.type };
     }
+    const eventTime = assertFreshTimestamp(normalized.eventTime, 'Square webhook', this.config.webhookToleranceMs);
     const partner = this.getPartner(this.config.squarePartnerId);
     const issuerId = this.resolveIssuerId(partner, normalized);
     const offering = this.resolveDefaultOffering(issuerId);
     const res = await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner });
-    this.recordWebhookEvent('square', event.event_id, issuerId, res.status);
+    this.recordWebhookEvent('square', event.event_id, issuerId, res.status, eventTime);
     return { status: res.status, event_id: event.event_id, receipt: res.receipt, claim_url: res.claimUrl };
   }
 
@@ -565,6 +736,7 @@ class PilotRuntime {
       // retry does not re-enrich (an API call) or append another corroboration.
       const noteId = `${note.realmId}:${note.entityId}:${note.lastUpdated ?? ''}`;
       if (this.webhookSeen('quickbooks', noteId)) continue;
+      const eventTime = assertFreshTimestamp(note.lastUpdated, 'QuickBooks webhook', this.config.webhookToleranceMs);
       const enriched = await this.config.quickbooksEnrich(note.realmId, note.entityId);
       // Use the deepest known rail identity: when QuickBooks records that the
       // payment cleared through Stripe/Square, that originating id (not the QBO
@@ -583,7 +755,7 @@ class PilotRuntime {
       const issuerId = this.resolveIssuerId(partner, normalized);
       const offering = enriched.offering || this.resolveDefaultOffering(issuerId);
       const res = await this.ingestTransaction({ ...normalized, issuerId, offering }, { partner });
-      this.recordWebhookEvent('quickbooks', noteId, issuerId, res.status);
+      this.recordWebhookEvent('quickbooks', noteId, issuerId, res.status, eventTime);
       results.push(res);
     }
     return { status: 'processed', count: results.length };
@@ -633,9 +805,41 @@ class PilotRuntime {
     return receiptFromStoredRow(this.store.db.prepare('SELECT * FROM receipts WHERE receipt_id = ?').get(receiptId));
   }
 
+  pilotRenderingInput(offering, windowEnd) {
+    const input = this.store.renderingInput(offering, windowEnd);
+    const rows = this.store.db.prepare(
+      `SELECT receipt_id, source_partner_id, kind, COUNT(*) AS n
+         FROM pilot_corroborations
+        WHERE logged_at <= ?
+        GROUP BY receipt_id, source_partner_id, kind
+        ORDER BY receipt_id, source_partner_id, kind`,
+    ).all(windowEnd);
+    const byReceipt = new Map();
+    for (const row of rows) {
+      const list = byReceipt.get(row.receipt_id) ?? [];
+      list.push({ source_partner_id: row.source_partner_id, kind: row.kind, count: row.n });
+      byReceipt.set(row.receipt_id, list);
+    }
+    return {
+      ...input,
+      reviews: input.reviews.map((review) => {
+        const corroborations = byReceipt.get(review.receipt_id) ?? [];
+        const positive = corroborations.filter((c) => c.kind === 'corroborates');
+        const reversed = corroborations.filter((c) => c.kind === 'reversed');
+        return {
+          ...review,
+          coattested: review.coattested || positive.length > 0,
+          corroborations,
+          corroboration_count: positive.reduce((sum, c) => sum + c.count, 0),
+          reversed: reversed.length > 0,
+        };
+      }),
+    };
+  }
+
   signedScore(offering, windowEnd = new Date().toISOString()) {
     this.getOffering(offering);
-    const rendered = { env: PILOT_ENV, ...renderOffering(this.store.renderingInput(offering, windowEnd)) };
+    const rendered = { env: PILOT_ENV, ...renderOffering(this.pilotRenderingInput(offering, windowEnd)) };
     return {
       manifest: rendered,
       signer: publicKeyToString(this.renderingKey.publicKey),
@@ -645,7 +849,7 @@ class PilotRuntime {
 
   renderingEvidence(offering, windowEnd = new Date().toISOString()) {
     this.getOffering(offering);
-    const input = stripHolderFromInput(this.store.renderingInput(offering, windowEnd));
+    const input = stripHolderFromInput(this.pilotRenderingInput(offering, windowEnd));
     return { env: PILOT_ENV, ...input };
   }
 

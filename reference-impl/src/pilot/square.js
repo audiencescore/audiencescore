@@ -44,6 +44,7 @@ function eventToTransaction(event) {
   if (!Number.isInteger(amountCents) || amountCents < 0) throw new Error('Square payment missing an integer amount');
   const refunded = payment.status === 'REFUNDED' || (payment.refunded_money?.amount ?? 0) > 0;
   return {
+    eventTime: event.created_at ?? payment.updated_at ?? payment.created_at ?? null,
     connectedAccountRef: event.merchant_id,
     rail: 'square',
     processorTxnId: payment.id,

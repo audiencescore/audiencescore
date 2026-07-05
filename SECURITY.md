@@ -33,11 +33,13 @@ unless you prefer otherwise.
 - Denial-of-service against demo tooling, and issues requiring a
   compromised operating system or stolen private keys.
 
-## No live deployment yet
+## Live pilot scope
 
-The superseded v0.1 spec and current v0.2a draft have no production
-deployment and no live data. Reports against the spec and reference
-implementation are still valuable — earlier is cheaper.
+AudienceScore has a hosted pilot read surface (`mcp.audiencescore.org`) and
+operator-deployable pilot write/issuer code in `reference-impl/src/pilot/`.
+There is no production deployment and no live review data. Reports against the
+spec, reference implementation, hosted read surface, and pilot write paths are
+valuable — earlier is cheaper.
 
 ## Known hardening notes (v0.2a reference implementation)
 

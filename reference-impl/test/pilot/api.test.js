@@ -129,7 +129,7 @@ test('pilot Stripe test webhook issues an L1 receipt once', async () => {
         object: {
           id: 'cs_test_001',
           amount_total: 10000,
-          created: 1783180800,
+          created: Math.floor(Date.now() / 1000),
           customer_details: { email: 'stripe-customer@example.test' },
           metadata: {
             audiencescore_issuer_id: 'field-elevate-pilot',
@@ -142,7 +142,7 @@ test('pilot Stripe test webhook issues an L1 receipt once', async () => {
     const raw = JSON.stringify(event);
     const first = await jsonFetch(`${base}/v0/stripe/webhook`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'stripe-signature': signStripeFixture(raw, secret, 1783180800) },
+      headers: { 'content-type': 'application/json', 'stripe-signature': signStripeFixture(raw, secret) },
       body: raw,
     });
     assert.equal(first.res.status, 200);
@@ -152,7 +152,7 @@ test('pilot Stripe test webhook issues an L1 receipt once', async () => {
 
     const duplicate = await jsonFetch(`${base}/v0/stripe/webhook`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'stripe-signature': signStripeFixture(raw, secret, 1783180800) },
+      headers: { 'content-type': 'application/json', 'stripe-signature': signStripeFixture(raw, secret) },
       body: raw,
     });
     assert.equal(duplicate.res.status, 200);

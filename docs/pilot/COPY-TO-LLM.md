@@ -10,16 +10,20 @@ cryptographic review and per-vertical legal review gates remain open. The pilot
 ledger may be reset and receipts re-issued after the audit. Do not call this
 production.
 
-Base URL: https://api.audiencescore.org
+Hosted read base URL: https://mcp.audiencescore.org
+
+Issuer/write API base URL: set by the pilot operator when deploying
+reference-impl/src/pilot/server.js. Do not assume api.audiencescore.org works
+until DNS is configured.
 
 Read a signed score manifest:
-curl -s "https://api.audiencescore.org/v0/scores/{offering}"
+curl -s "https://mcp.audiencescore.org/v0/scores/{offering}"
 
 Fetch de-identified evidence for recomputation:
-curl -s "https://api.audiencescore.org/v0/scores/{offering}/evidence"
+curl -s "https://mcp.audiencescore.org/v0/scores/{offering}/evidence"
 
 Submit a review with a signed receipt:
-curl -s -X POST "https://api.audiencescore.org/v0/reviews" \
+curl -s -X POST "{issuer_write_base_url}/v0/reviews" \
   -H "content-type: application/json" \
   --data '{
     "receipt": { "spec": "as/0.2a", "...": "signed receipt JSON" },
@@ -27,7 +31,7 @@ curl -s -X POST "https://api.audiencescore.org/v0/reviews" \
   }'
 
 Remote MCP HTTP JSON-RPC:
-curl -s -X POST "https://api.audiencescore.org/mcp" \
+curl -s -X POST "https://mcp.audiencescore.org/mcp" \
   -H "content-type: application/json" \
   --data '{
     "jsonrpc": "2.0",
@@ -53,5 +57,5 @@ Rules:
 The hosted version is available at:
 
 ```text
-https://api.audiencescore.org/docs/copy-to-llm
+https://github.com/audiencescore/audiencescore/blob/main/docs/pilot/COPY-TO-LLM.md
 ```

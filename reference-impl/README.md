@@ -42,7 +42,8 @@ criterion in [/tests/ACCEPTANCE-TESTS.md](../tests/ACCEPTANCE-TESTS.md)
 | `src/events.js` | Superseded v0.1 event envelope, append-only hash-chained log ([event-spec](../protocol/event-spec.md)) |
 | `src/receipts.js` | Superseded v0.1 vendor receipts, single-use rights registry ([receipt-spec](../protocol/receipt-spec.md)) |
 | `src/score.js` | Superseded v0.1 score function ([score-spec](../score-spec/score-spec-v0.1.md)) |
-| `src/mcp-server.js` | Minimal MCP (JSON-RPC 2.0 over stdio) server exposing `get_score` |
+| `src/mcp-server.js` | Superseded v0.1 MCP (JSON-RPC 2.0 over stdio) demo |
+| `src/mcp-http-server.js` | Streamable HTTP pilot read API exposing v0.2 `get_score` and `get_score_evidence` |
 | `src/v02/canonical.js` | as/0.2a canonical receipt serialization ([CANONICAL.md](../conformance/CANONICAL.md)) |
 | `src/v02/signing.js` | The receipt signature scheme behind one swappable interface (GATE-1) |
 | `src/v02/holder.js` | Per-issuer derived holder keys + BLAKE3 bindings (spec §7) |
@@ -53,7 +54,15 @@ criterion in [/tests/ACCEPTANCE-TESTS.md](../tests/ACCEPTANCE-TESTS.md)
 
 ## Query it from an MCP client
 
-The server takes an event-log JSONL file and exposes one tool, `get_score`:
+The current pilot read server speaks MCP Streamable HTTP and exposes
+`get_score(offering)` plus `get_score_evidence(offering)`:
+
+```sh
+node reference-impl/src/mcp-http-server.js
+```
+
+The older v0.1 stdio demonstrator is retained for reproducibility. It takes an
+event-log JSONL file and exposes the superseded vendor-based `get_score`:
 
 ```sh
 node reference-impl/src/mcp-server.js /path/to/events.jsonl

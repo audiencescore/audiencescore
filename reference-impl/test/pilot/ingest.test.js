@@ -13,6 +13,8 @@ const path = require('node:path');
 const { PilotRuntime } = require('../../src/pilot/runtime');
 const { createServer } = require('../../src/pilot/server');
 const { verifyCoattestation } = require('../../src/v02/signing');
+const { loadPartnerKey } = require('../../src/pilot/keyring');
+const { signPartnerRequest } = require('../../src/pilot/partner-auth');
 
 function tempConfig(extra = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'as-ingest-'));
@@ -33,6 +35,18 @@ function setup(runtime) {
 
 const outboxCount = (r) => (fs.existsSync(r.config.outboxDir) ? fs.readdirSync(r.config.outboxDir).length : 0);
 const count = (r, sql, ...a) => r.store.db.prepare(sql).get(...a).c;
+
+function signedPartnerHeaders(runtime, partnerId, method, pathName, body, nonce = `nonce-${Date.now()}-${Math.random()}`) {
+  const timestamp = new Date().toISOString();
+  const request = { method, path: pathName, body, timestamp, nonce };
+  return {
+    'content-type': 'application/json',
+    'x-as-partner-id': partnerId,
+    'x-as-timestamp': timestamp,
+    'x-as-nonce': nonce,
+    'x-as-signature': signPartnerRequest(loadPartnerKey(runtime.config.keysDir, partnerId).privateKey, request),
+  };
+}
 
 test('same rail transaction from two partners → one receipt, one corroboration, one review-right, one delivery', async () => {
   const runtime = new PilotRuntime(tempConfig());
@@ -74,6 +88,10 @@ test('same rail transaction from two partners → one receipt, one corroboration
   assert.equal(r1.reviewClass, 'verified_purchaser');
   assert.throws(() => runtime.submitReviewWithReceipt({ receipt: first.receipt, review }), /already/);
   assert.equal(count(runtime, 'SELECT count(*) c FROM reviews'), 1, 'one real transaction yields at most one review');
+  const signed = runtime.signedScore('widget@v1', new Date().toISOString());
+  assert.equal(signed.manifest.sample_mix.attestation_sources.coattested, 1, 'later corroborations feed signed rendering evidence');
+  const evidence = runtime.renderingEvidence('widget@v1', new Date().toISOString());
+  assert.equal(evidence.reviews[0].corroboration_count, 2);
 
   runtime.close();
 });
@@ -165,6 +183,43 @@ test('ingestion refuses a non-positive amount (an L1 receipt requires value to h
   runtime.close();
 });
 
+test('same rail id with conflicting immutable facts is quarantined, not corroborated', async () => {
+  const runtime = new PilotRuntime(tempConfig());
+  runtime.createIssuer({ issuerId: 'school', name: 'School' });
+  runtime.addOffering({ issuerId: 'school', offeringId: 'math', version: 'v1', name: 'Math', priceCents: 5000, components: { course: 'math' } });
+  runtime.addOffering({ issuerId: 'school', offeringId: 'science', version: 'v1', name: 'Science', priceCents: 25000, components: { course: 'science' } });
+  runtime.createPartner({ partnerId: 'platform', name: 'Platform' });
+  runtime.linkIssuer({ partnerId: 'platform', issuerId: 'school' });
+  const partner = runtime.getPartner('platform');
+  const base = { issuerId: 'school', rail: 'stripe', processorTxnId: 'pi_same', currency: 'usd', customerEmail: 'student@example.test', kind: 'transaction' };
+  const first = await runtime.ingestTransaction({ ...base, offering: 'math@v1', amountCents: 5000, occurredAt: '2026-07-04T15:00:00Z' }, { partner });
+  const second = await runtime.ingestTransaction({ ...base, offering: 'science@v1', amountCents: 25000, occurredAt: '2026-07-04T15:01:00Z' }, { partner });
+  assert.equal(first.status, 'minted');
+  assert.equal(second.status, 'conflict');
+  assert.equal(count(runtime, 'SELECT count(*) c FROM receipts'), 1);
+  assert.equal(count(runtime, 'SELECT count(*) c FROM pilot_corroborations'), 0);
+  assert.equal(count(runtime, 'SELECT count(*) c FROM pilot_txn_conflicts'), 1);
+  runtime.close();
+});
+
+test('surrogate no-rail repeat and hour-boundary near-match are ambiguous, not silent merge or duplicate mint', async () => {
+  const runtime = new PilotRuntime(tempConfig());
+  setup(runtime);
+  runtime.createPartner({ partnerId: 'pos', name: 'POS' });
+  runtime.linkIssuer({ partnerId: 'pos', issuerId: 'acme' });
+  const partner = runtime.getPartner('pos');
+  const base = { issuerId: 'acme', offering: 'widget@v1', amountCents: 4900, currency: 'usd', customerEmail: 'buyer@example.test', kind: 'transaction' };
+  const first = await runtime.ingestTransaction({ ...base, occurredAt: '2026-07-04T15:10:00Z' }, { partner });
+  const sameBucket = await runtime.ingestTransaction({ ...base, occurredAt: '2026-07-04T15:50:00Z' }, { partner });
+  const nextBucket = await runtime.ingestTransaction({ ...base, occurredAt: '2026-07-04T16:00:01Z' }, { partner });
+  assert.equal(first.status, 'minted');
+  assert.equal(sameBucket.status, 'ambiguous');
+  assert.equal(nextBucket.status, 'ambiguous');
+  assert.equal(count(runtime, 'SELECT count(*) c FROM receipts'), 1);
+  assert.equal(count(runtime, 'SELECT count(*) c FROM pilot_txn_conflicts'), 2);
+  runtime.close();
+});
+
 test('an unsigned Stripe webhook is refused before anything is written', async () => {
   const runtime = new PilotRuntime(tempConfig({ stripeWebhookSecrets: { acme: 'whsec_x' } }));
   setup(runtime);
@@ -184,11 +239,14 @@ test('the /v1/transactions endpoint authenticates the partner and mints', async 
   const base = `http://127.0.0.1:${server.address().port}`;
   const body = JSON.stringify({ issuerId: 'acme', offering: 'widget@v1', amountCents: 4900, currency: 'usd', rail: 'stripe', processorTxnId: 'pi_API', occurredAt: '2026-07-04T15:00:00Z', kind: 'transaction' });
   try {
-    const bad = await fetch(`${base}/v1/transactions`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-as-partner-id': 'api-partner', 'x-as-partner-secret': 'wrong' }, body });
+    const bad = await fetch(`${base}/v1/transactions`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-as-partner-id': 'api-partner' }, body });
     assert.equal(bad.status, 401);
-    const ok = await fetch(`${base}/v1/transactions`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-as-partner-id': 'api-partner', 'x-as-partner-secret': p.secret }, body });
+    const headers = signedPartnerHeaders(runtime, p.partnerId, 'POST', '/v1/transactions', body, 'nonce-api-1');
+    const ok = await fetch(`${base}/v1/transactions`, { method: 'POST', headers, body });
     assert.equal(ok.status, 201);
     assert.equal((await ok.json()).status, 'minted');
+    const replay = await fetch(`${base}/v1/transactions`, { method: 'POST', headers, body });
+    assert.equal(replay.status, 401);
   } finally {
     server.close();
     runtime.close();

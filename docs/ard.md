@@ -31,8 +31,8 @@ The manifest is a **planted flag**: committing it here does nothing until the
 domain is wired up. None of the following are done, and none should be
 automated in this repo — they are deploy/DNS actions for the owner:
 
-1. **Point `audiencescore.org` at this repository's GitHub Pages** (Pages
-   custom domain + the DNS records GitHub specifies + a `CNAME`). Until then the
+1. **Point `audiencescore.org` at the documentation host** (Pages/Vercel custom
+   domain + the DNS records the host specifies + a `CNAME`). Until then the
    well-known URL does not resolve.
 
 2. **Make Pages actually publish the `.well-known/` dot-folder.** GitHub Pages'
@@ -48,22 +48,19 @@ automated in this repo — they are deploy/DNS actions for the owner:
    This is left as an owner decision because it changes how the whole site
    builds; it is not a code change and is not covered by the reference tests.
 
-3. **(Optional, to make the entry fully resolvable) serve the referenced MCP
-   server card.** The catalog entry's `url` points at
-   `https://audiencescore.org/.well-known/mcp/server-card.json`. The reference
-   MCP server today speaks JSON-RPC 2.0 over **stdio** and is not hosted, so no
-   server card and no HTTP endpoint exist yet. An ARD crawler will find the
-   catalog entry but get a 404 for the card until one is published — acceptable
-   at flag-planting stage, and a natural companion to any future hosted
-   deployment. The source of truth remains the open-source server in
-   [`reference-impl/src/mcp-server.js`](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/src/mcp-server.js).
+3. **Serve the referenced MCP server card.** The catalog entry's `url` points at
+   `https://audiencescore.org/.well-known/mcp/server-card.json`, which is stored
+   in this repo at `docs/.well-known/mcp/server-card.json`. The hosted read
+   endpoint is Streamable HTTP at `https://mcp.audiencescore.org/mcp`; the source
+   of truth remains the open-source server in
+   [`reference-impl/src/mcp-http-server.js`](https://github.com/audiencescore/audiencescore/blob/main/reference-impl/src/mcp-http-server.js).
 
 ## Honest status
 
-- **No live data.** The `metadata.hasLiveData` field is `false` on purpose. The
-  server answers `get_score`, but with no receipts recorded a real vendor
-  returns a not-displayed manifest. Listing the capability is a discovery
-  flag, not a claim of coverage.
+- **No live review data.** The `metadata.hasLiveData` field is `false` on
+  purpose. The server answers `get_score`, but with no receipts recorded an
+  offering remains below the k-anonymity floor and returns `published:false`.
+  Listing the capability is a discovery flag, not a claim of coverage.
 - **ARD was pre-production in mid-2026.** Expect little or no crawler traffic
   yet; this is planting the flag so discovery lands the day the ecosystem and
   live data both exist.

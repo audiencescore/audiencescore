@@ -6,7 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Pilot ingestion now quarantines canonical-key conflicts and no-rail surrogate
+  ambiguities instead of silently corroborating or minting.
+- Partner `/v1/transactions` writes now require signed, timestamped, nonce-bound
+  Ed25519 requests; replayed nonces are refused.
+- Stripe, Square, and QuickBooks webhook handlers reject stale signed events.
+- Streamable HTTP MCP now serves the v0.2 pilot read surface (`get_score` and
+  `get_score_evidence`), validates Origin/protocol headers, and exposes REST
+  score/evidence reads through the same runtime.
+- Public docs and discovery metadata now describe the v0.2 offering-based pilot
+  read API instead of the superseded v0.1 vendor-score demo.
 
 ## [0.2.0] — 2026-07-04
 

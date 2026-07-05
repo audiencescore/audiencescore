@@ -11,8 +11,18 @@
   },
   "servers": [
     {
-      "url": "https://api.audiencescore.org",
-      "description": "AudienceScore pilot API"
+      "url": "https://mcp.audiencescore.org",
+      "description": "Hosted pilot read API: /mcp and /v0/scores/*"
+    },
+    {
+      "url": "https://{issuerWriteHost}",
+      "description": "Operator-deployed issuer/write API running reference-impl/src/pilot/server.js",
+      "variables": {
+        "issuerWriteHost": {
+          "default": "api.audiencescore.org",
+          "description": "Configure DNS before using this host"
+        }
+      }
     }
   ],
   "paths": {
@@ -141,6 +151,32 @@
         }
       }
     },
+    "/v1/transactions": {
+      "post": {
+        "operationId": "ingestTransaction",
+        "summary": "Ingest a normalized partner transaction",
+        "description": "Partner write endpoint. The request body must be signed by the partner Ed25519 key using x-as-timestamp, x-as-nonce, and x-as-signature. The signature covers METHOD, PATH, timestamp, nonce, and sha256(body).",
+        "parameters": [
+          { "name": "x-as-partner-id", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "x-as-timestamp", "in": "header", "required": true, "schema": { "type": "string", "format": "date-time" } },
+          { "name": "x-as-nonce", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "x-as-signature", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Lowercase-hex Ed25519 signature." }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NormalizedTransaction" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Minted one receipt" },
+          "200": { "description": "Corroborated, reversed, conflicted, or ambiguous" },
+          "401": { "description": "Missing, bad, stale, or replayed partner signature" }
+        }
+      }
+    },
     "/mcp": {
       "post": {
         "operationId": "mcpHttp",
@@ -259,11 +295,28 @@
           "event": { "type": "object" }
         }
       },
+      "NormalizedTransaction": {
+        "type": "object",
+        "required": ["offering", "amountCents", "currency", "kind"],
+        "properties": {
+          "issuerId": { "type": "string" },
+          "connectedAccountRef": { "type": "string" },
+          "offering": { "type": "string", "examples": ["field-elevate-demo@v1"] },
+          "rail": { "type": "string", "examples": ["stripe", "square", "manual"] },
+          "processorTxnId": { "type": "string" },
+          "amountCents": { "type": "integer", "minimum": 1 },
+          "currency": { "type": "string", "examples": ["usd"] },
+          "occurredAt": { "type": "string", "format": "date-time" },
+          "customerEmail": { "type": "string", "format": "email" },
+          "role": { "enum": ["participant", "payer"] },
+          "kind": { "enum": ["transaction", "reversal"] }
+        }
+      },
       "WebhookResponse": {
         "type": "object",
         "required": ["status"],
         "properties": {
-          "status": { "enum": ["issued", "duplicate", "ignored"] },
+          "status": { "enum": ["issued", "minted", "corroborated", "reversed", "duplicate", "ignored", "conflict", "ambiguous"] },
           "event_id": { "type": "string" },
           "receipt": { "$ref": "#/components/schemas/Receipt" },
           "claim_url": { "type": "string" }

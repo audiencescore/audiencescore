@@ -96,7 +96,12 @@ async function main() {
       console.log(JSON.stringify({
         ...result,
         ingest_url: `${runtime.config.publicBaseUrl}/v1/transactions`,
-        auth_headers: { 'x-as-partner-id': result.partnerId, 'x-as-partner-secret': '<the secret above — store it now, it is not recoverable>' },
+        auth_headers: {
+          'x-as-partner-id': result.partnerId,
+          'x-as-timestamp': '<RFC3339 request time>',
+          'x-as-nonce': '<unique nonce, never reused>',
+          'x-as-signature': '<hex Ed25519 signature over METHOD, PATH, timestamp, nonce, sha256(body)>',
+        },
       }, null, 2));
       return;
     }

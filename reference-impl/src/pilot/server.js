@@ -5,24 +5,7 @@ const http = require('node:http');
 const { URL } = require('node:url');
 const { PilotRuntime, defaultConfig } = require('./runtime');
 const { handleMcp } = require('../mcp-streamable');
-
-const MCP_INSTRUCTIONS =
-  'AudienceScore pilot deployment, pre-cryptographic-audit. Use get_score to fetch an Ed25519-signed pilot rendering manifest for an offering-version. Responses are pilot-labeled and may be reset/re-issued after cryptographic audit.';
-
-const TOOL = {
-  name: 'get_score',
-  title: 'Get an AudienceScore pilot score',
-  description: 'Returns a signed pilot rendering v1 manifest for an offering-version. No auth required. The manifest includes env="pilot" in the signed body.',
-  annotations: { readOnlyHint: true, openWorldHint: true },
-  inputSchema: {
-    type: 'object',
-    properties: {
-      offering: { type: 'string', description: 'Offering-version, for example field-elevate-demo@v1' },
-      window_end: { type: 'string', description: 'Optional RFC3339 rendering window end' },
-    },
-    required: ['offering'],
-  },
-};
+const { mcpServer } = require('./mcp');
 
 function json(res, status, body) {
   const payload = JSON.stringify(body, null, 2);
@@ -30,7 +13,7 @@ function json(res, status, body) {
     'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type,stripe-signature',
+    'access-control-allow-headers': 'content-type,stripe-signature,x-square-hmacsha256-signature,intuit-signature,x-as-partner-id,x-as-timestamp,x-as-nonce,x-as-signature',
   });
   res.end(payload);
 }
@@ -52,20 +35,6 @@ function readBody(req) {
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
-}
-
-// The pilot's MCP provider for the Streamable-HTTP transport: the offering-based
-// get_score backed by the live ledger.
-function mcpServer(runtime) {
-  return {
-    serverInfo: { name: 'audiencescore-pilot', title: 'AudienceScore Pilot', version: '0.2.0-pilot' },
-    instructions: MCP_INSTRUCTIONS,
-    tools: [TOOL],
-    callTool(name, args) {
-      if (name !== 'get_score') throw new Error(`unknown tool: ${name}`);
-      return runtime.signedScore(args.offering, args.window_end);
-    },
-  };
 }
 
 function copyToLlm(runtime) {
@@ -165,13 +134,22 @@ function createServer(runtime = new PilotRuntime()) {
         return json(res, 200, await runtime.handleQuickBooksWebhook(raw, req.headers['intuit-signature']));
       }
       if (req.method === 'POST' && url.pathname === '/v1/partners/provision') {
+        const raw = await readBody(req);
         let partner;
         try {
-          partner = runtime.authenticatePartner(req.headers['x-as-partner-id'], req.headers['x-as-partner-secret']);
+          partner = runtime.authenticateSignedPartner({
+            partnerId: req.headers['x-as-partner-id'],
+            method: req.method,
+            path: url.pathname,
+            rawBody: raw,
+            timestamp: req.headers['x-as-timestamp'],
+            nonce: req.headers['x-as-nonce'],
+            signature: req.headers['x-as-signature'],
+          });
         } catch {
           return json(res, 401, { error: 'partner authentication failed', env: 'pilot' });
         }
-        const body = JSON.parse(await readBody(req));
+        const body = JSON.parse(raw);
         return json(res, 200, runtime.provisionMerchants(partner.partner_id, body.merchants ?? []));
       }
       // Platform / protocol / merchant direct ingestion. One rail for every
@@ -179,13 +157,22 @@ function createServer(runtime = new PilotRuntime()) {
       // per-partner shared secret for the pilot; production uses signed
       // requests or mTLS.
       if (req.method === 'POST' && url.pathname === '/v1/transactions') {
+        const raw = await readBody(req);
         let partner;
         try {
-          partner = runtime.authenticatePartner(req.headers['x-as-partner-id'], req.headers['x-as-partner-secret']);
+          partner = runtime.authenticateSignedPartner({
+            partnerId: req.headers['x-as-partner-id'],
+            method: req.method,
+            path: url.pathname,
+            rawBody: raw,
+            timestamp: req.headers['x-as-timestamp'],
+            nonce: req.headers['x-as-nonce'],
+            signature: req.headers['x-as-signature'],
+          });
         } catch {
           return json(res, 401, { error: 'partner authentication failed', env: 'pilot' });
         }
-        const body = JSON.parse(await readBody(req));
+        const body = JSON.parse(raw);
         const result = await runtime.ingestTransaction(body, { partner });
         return json(res, result.status === 'minted' ? 201 : 200, result);
       }
@@ -202,7 +189,7 @@ function createServer(runtime = new PilotRuntime()) {
       // 500 and returns a generic body so internals never leak to the caller.
       if (/already/.test(msg)) return json(res, 409, { error: msg, env: 'pilot' });
       if (/not authorized/.test(msg)) return json(res, 403, { error: msg, env: 'pilot' });
-      if (/receipt|issuer|offering|signature|token|required|missing|invalid|metadata|partner|amount|authoriz|unknown|resolve/.test(msg)) {
+      if (/receipt|issuer|offering|signature|token|required|missing|invalid|metadata|partner|amount|authoriz|unknown|resolve|replay|nonce|timestamp|conflict|ambiguous/.test(msg)) {
         return json(res, 400, { error: msg, env: 'pilot' });
       }
       return json(res, 500, { error: 'internal error', env: 'pilot' });

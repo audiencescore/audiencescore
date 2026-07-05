@@ -30,12 +30,13 @@ const count = (r, sql, ...a) => r.store.db.prepare(sql).get(...a).c;
 function squareEvent(overrides = {}) {
   return {
     merchant_id: 'ML_MERCHANT_1', type: 'payment.updated', event_id: overrides.event_id ?? 'sq_evt_1',
+    created_at: overrides.created_at ?? new Date().toISOString(),
     data: { object: { payment: {
       id: overrides.paymentId ?? 'sqpmt_1',
       amount_money: { amount: 4900, currency: 'USD' },
       status: overrides.status ?? 'COMPLETED',
       buyer_email_address: 'sqbuyer@example.test',
-      created_at: '2026-07-04T18:00:00Z',
+      created_at: overrides.payment_created_at ?? new Date().toISOString(),
       ...(overrides.refunded ? { refunded_money: { amount: 4900, currency: 'USD' } } : {}),
     } } },
   };
@@ -65,7 +66,8 @@ test('Square webhook rejects a bad signature and ignores unrelated events; a ref
   await assert.rejects(() => runtime.handleSquareWebhook(raw, 'not-the-signature'), /signature verification failed/);
 
   const refundRaw = JSON.stringify(squareEvent({ event_id: 'sq_evt_2', status: 'REFUNDED', refunded: true }));
-  await runtime.handleSquareWebhook(JSON.stringify(squareEvent({ event_id: 'sq_evt_0' })), signSquareFixture(JSON.stringify(squareEvent({ event_id: 'sq_evt_0' })), SQUARE_KEY, SQUARE_URL));
+  const saleRaw = JSON.stringify(squareEvent({ event_id: 'sq_evt_0' }));
+  await runtime.handleSquareWebhook(saleRaw, signSquareFixture(saleRaw, SQUARE_KEY, SQUARE_URL));
   const refund = await runtime.handleSquareWebhook(refundRaw, signSquareFixture(refundRaw, SQUARE_KEY, SQUARE_URL));
   assert.equal(refund.status, 'reversed');
   assert.equal(count(runtime, "SELECT count(*) c FROM pilot_corroborations WHERE kind = 'reversed'"), 1);
@@ -77,14 +79,14 @@ test('QuickBooks webhook: signature verified, entity enriched via the injected A
     quickbooksVerifierToken: QBO_TOKEN,
     quickbooksEnrich: async (realmId, entityId) => ({
       amountCents: 25000, currency: 'USD', customerEmail: 'client@example.test',
-      occurredAt: '2026-07-04T18:00:00Z', processorTxnId: entityId, connectedAccountRef: realmId,
+      occurredAt: new Date().toISOString(), processorTxnId: entityId, connectedAccountRef: realmId,
     }),
   }));
   runtime.createPartner({ partnerId: 'quickbooks', name: 'QuickBooks', kind: 'platform' });
   runtime.provisionMerchants('quickbooks', [{ issuerId: 'consultant', name: 'Consultant LLC', connectedAccountRef: 'realm_1' }]);
   runtime.addOffering({ issuerId: 'consultant', offeringId: 'advisory', version: 'v1', name: 'Advisory', priceCents: 25000, components: { service: 'ent_consultant' }, attestationCriteria: {} });
 
-  const payload = { eventNotifications: [{ realmId: 'realm_1', dataChangeEvent: { entities: [{ name: 'Payment', id: 'pmt_9', operation: 'Create', lastUpdated: '2026-07-04T18:00:00Z' }] } }] };
+  const payload = { eventNotifications: [{ realmId: 'realm_1', dataChangeEvent: { entities: [{ name: 'Payment', id: 'pmt_9', operation: 'Create', lastUpdated: new Date().toISOString() }] } }] };
   const raw = JSON.stringify(payload);
   const res = await runtime.handleQuickBooksWebhook(raw, signQuickBooksFixture(raw, QBO_TOKEN));
   assert.equal(res.status, 'processed');
@@ -101,7 +103,7 @@ test('a Stripe sale and its QuickBooks record carrying the same processor id de-
   const runtime = new PilotRuntime(tempConfig({
     stripeWebhookSecrets: { shop: 'whsec_shop' },
     quickbooksVerifierToken: QBO_TOKEN,
-    quickbooksEnrich: async () => ({ amountCents: 4900, currency: 'USD', customerEmail: 'buyer@example.test', occurredAt: '2026-07-04T18:00:00Z', rail: 'stripe', processorTxnId: stripeId, connectedAccountRef: 'realm_shop' }),
+    quickbooksEnrich: async () => ({ amountCents: 4900, currency: 'USD', customerEmail: 'buyer@example.test', occurredAt: new Date().toISOString(), rail: 'stripe', processorTxnId: stripeId, connectedAccountRef: 'realm_shop' }),
   }));
   runtime.createIssuer({ issuerId: 'shop', name: 'Shop' });
   runtime.addOffering({ issuerId: 'shop', offeringId: 'thing', version: 'v1', name: 'Thing', priceCents: 4900, components: { service: 'ent_shop' }, attestationCriteria: {} });
@@ -110,15 +112,44 @@ test('a Stripe sale and its QuickBooks record carrying the same processor id de-
 
   // Stripe mints (rail:stripe:pi_SHARED_1).
   const { signStripeFixture } = require('../../src/pilot/stripe');
-  const stripeEvt = { id: 'evt_s1', type: 'checkout.session.completed', data: { object: { id: stripeId, amount_total: 4900, created: 1783188000, customer_details: { email: 'buyer@example.test' }, metadata: { audiencescore_issuer_id: 'shop', audiencescore_offering: 'thing@v1', audiencescore_role: 'participant' } } } };
+  const stripeEvt = { id: 'evt_s1', type: 'checkout.session.completed', data: { object: { id: stripeId, amount_total: 4900, created: Math.floor(Date.now() / 1000), customer_details: { email: 'buyer@example.test' }, metadata: { audiencescore_issuer_id: 'shop', audiencescore_offering: 'thing@v1', audiencescore_role: 'participant' } } } };
   const sraw = JSON.stringify(stripeEvt);
-  await runtime.handleStripeWebhook(sraw, signStripeFixture(sraw, 'whsec_shop', 1783188000));
+  await runtime.handleStripeWebhook(sraw, signStripeFixture(sraw, 'whsec_shop'));
 
   // QuickBooks reports the same payment id → corroborates, not re-mints.
-  const qraw = JSON.stringify({ eventNotifications: [{ realmId: 'realm_shop', dataChangeEvent: { entities: [{ name: 'Payment', id: 'qbo_pmt', operation: 'Create' }] } }] });
+  const qraw = JSON.stringify({ eventNotifications: [{ realmId: 'realm_shop', dataChangeEvent: { entities: [{ name: 'Payment', id: 'qbo_pmt', operation: 'Create', lastUpdated: new Date().toISOString() }] } }] });
   await runtime.handleQuickBooksWebhook(qraw, signQuickBooksFixture(qraw, QBO_TOKEN));
 
   assert.equal(count(runtime, 'SELECT count(*) c FROM receipts WHERE offering = ?', 'thing@v1'), 1, 'one receipt across two connectors');
   assert.equal(count(runtime, 'SELECT count(*) c FROM pilot_corroborations'), 1, 'the QuickBooks report corroborated the Stripe receipt');
+  runtime.close();
+});
+
+test('stale signed webhooks are rejected before issuance', async () => {
+  const { signStripeFixture } = require('../../src/pilot/stripe');
+  const runtime = new PilotRuntime(tempConfig({
+    stripeWebhookSecrets: { shop: 'whsec_shop' },
+    squareSignatureKey: SQUARE_KEY,
+    squareNotificationUrl: SQUARE_URL,
+    quickbooksVerifierToken: QBO_TOKEN,
+    quickbooksEnrich: async () => ({ amountCents: 4900, currency: 'USD', occurredAt: '2020-01-01T00:00:00Z', connectedAccountRef: 'realm_shop' }),
+  }));
+  runtime.createIssuer({ issuerId: 'shop', name: 'Shop' });
+  runtime.addOffering({ issuerId: 'shop', offeringId: 'thing', version: 'v1', name: 'Thing', priceCents: 4900, components: { service: 'ent_shop' }, attestationCriteria: {} });
+  runtime.createPartner({ partnerId: 'square', name: 'Square', kind: 'rail' });
+  runtime.linkIssuer({ partnerId: 'square', issuerId: 'shop', connectedAccountRef: 'ML_MERCHANT_1' });
+  runtime.createPartner({ partnerId: 'quickbooks', name: 'QuickBooks', kind: 'platform' });
+  runtime.linkIssuer({ partnerId: 'quickbooks', issuerId: 'shop', connectedAccountRef: 'realm_shop' });
+
+  const stripeEvt = { id: 'evt_old', type: 'checkout.session.completed', data: { object: { id: 'pi_old', amount_total: 4900, created: 1, metadata: { audiencescore_issuer_id: 'shop', audiencescore_offering: 'thing@v1' } } } };
+  const sraw = JSON.stringify(stripeEvt);
+  await assert.rejects(() => runtime.handleStripeWebhook(sraw, signStripeFixture(sraw, 'whsec_shop', 1)), /replay window/);
+
+  const oldSquare = JSON.stringify(squareEvent({ event_id: 'sq_old', created_at: '2020-01-01T00:00:00Z', payment_created_at: '2020-01-01T00:00:00Z' }));
+  await assert.rejects(() => runtime.handleSquareWebhook(oldSquare, signSquareFixture(oldSquare, SQUARE_KEY, SQUARE_URL)), /replay window/);
+
+  const qraw = JSON.stringify({ eventNotifications: [{ realmId: 'realm_shop', dataChangeEvent: { entities: [{ name: 'Payment', id: 'qbo_old', operation: 'Create', lastUpdated: '2020-01-01T00:00:00Z' }] } }] });
+  await assert.rejects(() => runtime.handleQuickBooksWebhook(qraw, signQuickBooksFixture(qraw, QBO_TOKEN)), /replay window/);
+  assert.equal(count(runtime, 'SELECT count(*) c FROM receipts'), 0);
   runtime.close();
 });

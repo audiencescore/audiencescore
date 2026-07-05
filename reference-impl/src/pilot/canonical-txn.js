@@ -66,9 +66,11 @@ function canonicalTxnKey({ issuerId, rail, processorTxnId, amountCents, currency
   const ch = customerHash(customerContact);
   if (ch) {
     const cur = String(currency || '').trim().toLowerCase();
+    const bucket = hourBucket(occurredAt);
     return {
-      key: `${issuerId}|surr:${amountCents}:${cur}:${hourBucket(occurredAt)}:${ch}`,
+      key: `${issuerId}|surr:${amountCents}:${cur}:${bucket}:${ch}`,
       basis: 'surrogate',
+      surrogate: { amountCents: Number(amountCents), currency: cur, bucket, customerHash: ch, occurredAt },
     };
   }
   return { key: `${issuerId}|uniq:${uuidv7()}`, basis: 'unique' };

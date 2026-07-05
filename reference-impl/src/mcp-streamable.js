@@ -5,7 +5,7 @@
 // HTTP method, headers, and raw body and returns { status, headers, body }, so
 // the same core drives a Node http server and a serverless function.
 //
-// The server is stateless and read-only (one get_score tool), so a session id
+// The server is stateless and read-only (score and evidence tools), so a session id
 // is issued for clients that expect one but no per-session state is kept. GET
 // (server→client streaming) is declined with 405 because nothing is pushed.
 
@@ -62,11 +62,34 @@ function dispatch(message, server) {
 }
 
 const CORS = {
-  'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
   'access-control-allow-headers': 'content-type,mcp-session-id,mcp-protocol-version,accept',
   'access-control-expose-headers': 'mcp-session-id',
 };
+
+function isLocalOrigin(origin) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+function originHeaders(origin, server) {
+  if (!origin) return { ...CORS };
+  const allowed = new Set(server.allowedOrigins || []);
+  return { ...CORS, 'access-control-allow-origin': allowed.has(origin) || isLocalOrigin(origin) ? origin : 'null', vary: 'Origin' };
+}
+
+function originAllowed(origin, server) {
+  if (!origin) return true;
+  if (isLocalOrigin(origin)) return true;
+  return new Set(server.allowedOrigins || []).has(origin);
+}
+
+function acceptsJson(value) {
+  if (!value) return true;
+  return String(value).split(',').some((part) => {
+    const media = part.split(';')[0].trim().toLowerCase();
+    return media === '*/*' || media === 'application/*' || media === 'application/json';
+  });
+}
 
 /**
  * Handle one MCP HTTP request. `server` supplies { serverInfo, instructions,
@@ -74,30 +97,41 @@ const CORS = {
  */
 function handleMcp(method, headers, rawBody, server) {
   const h = Object.fromEntries(Object.entries(headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+  const cors = originHeaders(h.origin, server);
 
-  if (method === 'OPTIONS') return { status: 204, headers: { ...CORS }, body: '' };
+  if (!originAllowed(h.origin, server)) return { status: 403, headers: cors, body: '' };
+  if (h['mcp-protocol-version'] && !SUPPORTED_PROTOCOLS.has(String(h['mcp-protocol-version']))) {
+    return { status: 400, headers: { 'content-type': 'application/json', ...cors }, body: JSON.stringify(jsonrpcError(null, -32000, 'unsupported MCP-Protocol-Version')) };
+  }
+  if (method === 'OPTIONS') return { status: 204, headers: cors, body: '' };
   if (method === 'GET') {
     // No server-initiated stream: decline SSE per spec, keep the endpoint honest.
-    return { status: 405, headers: { ...CORS, allow: 'POST, DELETE, OPTIONS' }, body: JSON.stringify(jsonrpcError(null, -32000, 'this server does not offer an event stream')) };
+    return { status: 405, headers: { ...cors, allow: 'POST, DELETE, OPTIONS' }, body: JSON.stringify(jsonrpcError(null, -32000, 'this server does not offer an event stream')) };
   }
-  if (method === 'DELETE') return { status: 200, headers: { ...CORS }, body: '' };
-  if (method !== 'POST') return { status: 405, headers: { ...CORS, allow: 'POST, DELETE, OPTIONS' }, body: '' };
+  if (method === 'DELETE') return { status: 200, headers: cors, body: '' };
+  if (method !== 'POST') return { status: 405, headers: { ...cors, allow: 'POST, DELETE, OPTIONS' }, body: '' };
+  if (h['content-type'] && !String(h['content-type']).toLowerCase().includes('application/json')) {
+    return { status: 415, headers: { 'content-type': 'application/json', ...cors }, body: JSON.stringify(jsonrpcError(null, -32000, 'content-type must be application/json')) };
+  }
+  if (!acceptsJson(h.accept)) {
+    return { status: 406, headers: { 'content-type': 'application/json', ...cors }, body: JSON.stringify(jsonrpcError(null, -32000, 'accept must allow application/json')) };
+  }
 
   let message;
   try {
     message = JSON.parse(rawBody || '');
   } catch {
-    return { status: 400, headers: { 'content-type': 'application/json', ...CORS }, body: JSON.stringify(jsonrpcError(null, -32700, 'parse error')) };
+    return { status: 400, headers: { 'content-type': 'application/json', ...cors }, body: JSON.stringify(jsonrpcError(null, -32700, 'parse error')) };
   }
 
   // Notifications and responses (no id) are acknowledged with 202 and no body.
   if (Array.isArray(message) ? !message.some(isRequest) : !isRequest(message)) {
-    return { status: 202, headers: { ...CORS }, body: '' };
+    return { status: 202, headers: cors, body: '' };
   }
 
   const respond = (payload, extraHeaders = {}) => ({
     status: 200,
-    headers: { 'content-type': 'application/json', ...CORS, ...extraHeaders },
+    headers: { 'content-type': 'application/json', ...cors, ...extraHeaders },
     body: JSON.stringify(payload),
   });
 

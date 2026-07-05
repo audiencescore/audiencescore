@@ -1,0 +1,38 @@
+{
+  "name": "audiencescore-pilot",
+  "title": "AudienceScore Pilot — verified-review trust scores",
+  "description": "Streamable HTTP MCP server for AudienceScore pilot reads. get_score returns an Ed25519-signed v0.2 rendering manifest for an offering-version; get_score_evidence returns the de-identified input needed to recompute it.",
+  "version": "0.2.0-pilot",
+  "protocol": "mcp",
+  "protocolVersion": "2025-06-18",
+  "transport": "streamable-http",
+  "remote": {
+    "url": "https://mcp.audiencescore.org/mcp"
+  },
+  "source": {
+    "repository": "https://github.com/audiencescore/audiencescore",
+    "entrypoint": "reference-impl/src/mcp-http-server.js",
+    "run": "node reference-impl/src/mcp-http-server.js"
+  },
+  "tools": [
+    {
+      "name": "get_score",
+      "description": "Get a signed pilot rendering v1 manifest for an offering-version.",
+      "arguments": {
+        "offering": "string, required — offering-version such as field-elevate-demo@v1",
+        "window_end": "string, optional — RFC3339 rendering window end"
+      }
+    },
+    {
+      "name": "get_score_evidence",
+      "description": "Get de-identified rendering v1 input for independent recomputation.",
+      "arguments": {
+        "offering": "string, required — offering-version such as field-elevate-demo@v1",
+        "window_end": "string, optional — RFC3339 rendering window end"
+      }
+    }
+  ],
+  "capabilities": ["VerifiedReviewTrustScore", "ProofOfParticipationReviewLookup"],
+  "hosted": true,
+  "note": "Pilot deployment, pre-cryptographic-audit. With no verified reviews yet, scores remain below the k-anonymity floor and return published:false."
+}

@@ -45,13 +45,14 @@ mint-vs-corroborate.
 
 ### One ingestion endpoint
 
-`POST /v1/transactions` — authenticated per partner (API key / OAuth client-credentials / mTLS),
-body signed by the partner's key. Normalized event:
+`POST /v1/transactions` — authenticated per partner with an Ed25519 request
+signature over method, path, timestamp, nonce, and body hash (mTLS/OAuth can wrap
+this later, but the body signature is load-bearing). Normalized event:
 
 ```
 { partner_id, issuer_ref | connected_account_ref, offering_ref,
   rail, processor_txn_id, amount_cents, currency, occurred_at,
-  customer_contact?, role?, partner_sig }
+  customer_contact?, role? }
 ```
 
 The existing Stripe webhook handler, and future QuickBooks/Square/Shopify connectors, become
@@ -90,9 +91,12 @@ carry the originating Stripe id. When two partners carry the same rail id, they 
 same key automatically. `tx_id` in the ledger IS this canonical key.
 
 **Fallback when no shared processor id** (cash sale seen by POS + accounting; manual invoice):
-a surrogate key over `{issuer_id}|{amount_cents}|{currency}|{time-bucket}|{customer_hash?}`, matched
-within a tolerance window before minting. Conservative thresholds; every ambiguous near-match is
-logged as a protocol event for audit rather than silently merged.
+a surrogate candidate over `{issuer_id}|{amount_cents}|{currency}|{time-bucket}|{customer_hash?}`.
+The first candidate may mint, but any later exact or near match is quarantined as
+an append-only `transaction_conflict` instead of silently merging or minting a
+second receipt. Conservative rule: no-rail duplicates require operator/source
+resolution, because wrongly suppressing a real review is worse than delaying a
+corroboration.
 
 ### Mint-or-corroborate (better than first-come-and-discard)
 
@@ -103,10 +107,12 @@ On each `/v1/transactions`:
    (SQLite: PK conflict; production Postgres: `INSERT … ON CONFLICT DO NOTHING`).
    - **First source to land MINTS** — the one receipt, the one single-use review-right. This is
      Dusty's "first to get the token," made race-safe by the atomic insert.
-   - **Every later source for the same key does NOT mint.** It appends a `corroborations` row and
-     (optionally) its co-signature. Three partners seeing one sale → **one receipt corroborated
-     three times = a STRONGER receipt, not three phantom ones.** Double-dipping becomes
-     multi-source verification. Rendering can surface "verified by N independent sources."
+	   - **Every later source for the same key does NOT mint.** If immutable facts
+	     agree (issuer, offering, amount, currency), it appends a `corroborations`
+	     row and its co-signature. If they conflict, it appends a conflict row and
+	     signed event instead. Three partners seeing one matching sale → **one
+	     receipt corroborated three times = a STRONGER receipt, not three phantom
+	     ones.** Double-dipping becomes multi-source verification.
 3. **Delivery is keyed to the transaction, not the source.** The mint creates the claim link;
    whichever source first supplies a deliverable customer contact sends it, exactly once. So if the
    merchant mints without an email and Stripe later corroborates WITH the email, the review link

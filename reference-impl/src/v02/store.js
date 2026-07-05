@@ -330,9 +330,10 @@ class Store {
       },
       reviews: reviews.map((r) => {
         const chain = chainMap.get(chainKey(r.holder, r.role_at_post));
-        return {
-          review_id: r.review_id,
-          overall: r.overall,
+          return {
+            review_id: r.review_id,
+            receipt_id: r.receipt_id,
+            overall: r.overall,
           facets: JSON.parse(r.facets),
           text: r.text,
           role: r.role_at_post,

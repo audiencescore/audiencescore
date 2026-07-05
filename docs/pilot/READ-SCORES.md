@@ -9,7 +9,7 @@ Reading scores requires no account or API key.
 ## Curl
 
 ```sh
-curl -s "https://api.audiencescore.org/v0/scores/field-elevate-demo%40v1"
+curl -s "https://mcp.audiencescore.org/v0/scores/field-elevate-demo%40v1"
 ```
 
 The response is a signed manifest:
@@ -37,7 +37,7 @@ fields. That is expected for a tiny pilot.
 Fetch the de-identified evidence:
 
 ```sh
-curl -s "https://api.audiencescore.org/v0/scores/field-elevate-demo%40v1/evidence"
+curl -s "https://mcp.audiencescore.org/v0/scores/field-elevate-demo%40v1/evidence"
 ```
 
 The evidence omits customer identity and holder bindings. It contains enough
@@ -63,7 +63,7 @@ const ok = verifyPayload(signed.signer, signed.manifest, signed.sig);
 The pilot exposes a remote HTTP JSON-RPC endpoint for the `get_score` tool:
 
 ```sh
-curl -s -X POST "https://api.audiencescore.org/mcp" \
+curl -s -X POST "https://mcp.audiencescore.org/mcp" \
   -H "content-type: application/json" \
   --data '{
     "jsonrpc": "2.0",
@@ -76,4 +76,6 @@ curl -s -X POST "https://api.audiencescore.org/mcp" \
   }'
 ```
 
-The tool returns the same signed pilot manifest as the REST endpoint.
+The tool returns the same signed pilot manifest as the REST endpoint. The
+companion `get_score_evidence` tool returns the de-identified recomputation
+input for the same `window_end`.

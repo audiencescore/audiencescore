@@ -19,9 +19,14 @@ function timingSafeHexEqual(a, b) {
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
 }
 
-function verifyStripeWebhook(rawBody, header, secretsByIssuer) {
+const DEFAULT_TOLERANCE_SECONDS = 300;
+
+function verifyStripeWebhook(rawBody, header, secretsByIssuer, { now = Date.now(), toleranceSeconds = DEFAULT_TOLERANCE_SECONDS } = {}) {
   const parsed = parseStripeSignature(header);
   if (!parsed.t || !parsed.v1 || parsed.v1.length === 0) throw new Error('missing Stripe-Signature timestamp or v1 signature');
+  const ts = Number(parsed.t);
+  if (!Number.isInteger(ts)) throw new Error('Stripe-Signature timestamp is invalid');
+  if (Math.abs(Math.floor(now / 1000) - ts) > toleranceSeconds) throw new Error('Stripe webhook timestamp is outside the replay window');
   const signed = `${parsed.t}.${rawBody}`;
   for (const [issuerId, secret] of Object.entries(secretsByIssuer)) {
     if (!secret) continue;
@@ -61,4 +66,4 @@ function eventToTransaction(event, fallbackIssuerId = null) {
   };
 }
 
-module.exports = { verifyStripeWebhook, signStripeFixture, eventToTransaction };
+module.exports = { verifyStripeWebhook, signStripeFixture, eventToTransaction, DEFAULT_TOLERANCE_SECONDS };

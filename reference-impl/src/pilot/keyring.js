@@ -19,6 +19,11 @@ function loadPrivateKey(file) {
 }
 
 function loadOrCreatePayloadKey(keysDir, name) {
+  const envName = `AUDIENCESCORE_${name.replace(/-/g, '_').toUpperCase()}_PRIVATE_KEY_PEM`;
+  if (process.env[envName]) {
+    const privateKey = crypto.createPrivateKey(process.env[envName]);
+    return { privateKey, publicKey: crypto.createPublicKey(privateKey), source: envName };
+  }
   ensureDir(keysDir);
   const file = path.join(keysDir, `${name}.private.pem`);
   if (!fs.existsSync(file)) {
