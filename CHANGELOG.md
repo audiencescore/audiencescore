@@ -11,9 +11,15 @@ All notable changes to this project are documented here. The format follows
 - `reference-impl/src/mcp-tools.js`: superseded v0.1 helper with zero inbound
   references and no possible external consumers (repository has never been
   forked).
+- The v0.1 executable implementation at HEAD: `reference-impl/src/events.js`,
+  `reference-impl/src/receipts.js`, `reference-impl/src/score.js`,
+  `reference-impl/src/mcp-server.js`, and their v0.1-only tests. Git history
+  and the signed v0.1.0 release tag remain the reproducibility archive.
 
 ### Changed
 
+- `reference-impl/demo.js` now proves the v0.2 pilot loop: receipt issued,
+  review admitted, score rendered, and score queried over MCP.
 - The cross-host probe now also asserts the published key set at
   `audiencescore.org/.well-known/audiencescore-keys.json` contains the live
   rendering key, and that the apex MCP server card matches the repository

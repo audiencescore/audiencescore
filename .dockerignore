@@ -1,0 +1,8 @@
+.git
+node_modules
+reference-impl/node_modules
+npm-debug.log*
+.env
+.env.*
+*.pem
+*.key

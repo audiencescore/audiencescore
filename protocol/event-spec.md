@@ -6,8 +6,9 @@
 > was reconciled with it.
 
 Status: **draft**. Spec identifier: `audiencescore/event@0.1`.
-Normative for the event log; the reference implementation in
-[`/reference-impl`](../reference-impl/) implements it.
+Normative for the historical v0.1 event log. The v0.1 implementation was
+retired at HEAD; git history and the signed v0.1.0 release tag remain the
+reproducibility archive.
 
 ## 1. Design rules
 
@@ -149,8 +150,8 @@ strongest form the underlying proof supports:
 A conforming verifier accepts a log if and only if, walking from the first
 event: each event's `prev` equals the hash of the preceding event's full
 canonical form (or genesis for the first), each `id` matches its recomputed
-value, and each `sig` verifies against `signer`. The reference implementation
-(`reference-impl/src/events.js`) is the executable form of this paragraph.
+value, and each `sig` verifies against `signer`. The retired v0.1
+implementation in git history is the executable form of this paragraph.
 
 ## 7. Privacy posture (forward-looking)
 

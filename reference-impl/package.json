@@ -1,7 +1,7 @@
 {
   "name": "audiencescore-reference-impl",
   "version": "0.2.0-a",
-  "description": "Reference implementation of the AudienceScore protocol: attestation-gated reviews, the v0.2a receipt schema and ladder, deterministic renderings, invariant health checks, hash-chained event log, MCP read API.",
+  "description": "Reference implementation of the AudienceScore protocol: attestation-gated reviews, the v0.2a receipt schema and ladder, deterministic renderings, invariant health checks, and MCP read API.",
   "license": "Apache-2.0",
   "private": true,
   "engines": {

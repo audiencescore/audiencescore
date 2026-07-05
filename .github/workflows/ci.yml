@@ -33,7 +33,7 @@ jobs:
       - name: Check docs links
         run: node .github/scripts/check-links.js
 
-      - name: Unit and acceptance tests (v0.1 suite + AT-1..AT-25)
+      - name: Unit and acceptance tests (v0.2 pilot suite + AT-1..AT-25)
         run: node --test reference-impl/test/*.test.js reference-impl/test/v02/*.test.js reference-impl/test/pilot/*.test.js
 
       - name: End-to-end demo

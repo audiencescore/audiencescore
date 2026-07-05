@@ -149,6 +149,16 @@ diverges in key, code, or signed content again. Standalone mode (no upstream
 configured) remains for local development and other operators, clearly labeled
 as a per-instance demo ledger.
 
+**D-14 — The v0.1 executable implementation is retired at HEAD.** Earlier
+entries record why v0.1 and v0.2 were implemented side by side during the
+transition. That was useful while the v0.2 pilot path was being proved, but it
+left current HEAD carrying a second executable product shape. **Resolution:**
+the v0.1 runtime modules, stdio MCP demo, and v0.1-only tests are removed from
+HEAD. Git history and the signed v0.1.0 release tag remain the archive for
+reproducibility; spec §9 still documents the degenerate-case mapping from v0.1
+to v0.2, and the current demo now proves the pilot loop through the v0.2
+runtime.
+
 ## What was checked and found NOT to be drift
 
 - The seven invariants (I-1..I-7), the threat register (T-1..T-10), roles,
