@@ -24,6 +24,9 @@ All notable changes to this project are documented here. The format follows
 
 - `reference-impl/demo.js` now proves the v0.2 pilot loop: receipt issued,
   review admitted, score rendered, and score queried over MCP.
+- README and `docs/index.md` now serve as the contributor front door: connect
+  MCP by URL, read and verify a signed score, run locally, and find spec,
+  governance, and contribution paths.
 - The pilot deployment runbook moved from root `DESIGN.md` to
   `docs/pilot/DEPLOYMENT.md`.
 - The cross-host probe now also asserts the published key set at
