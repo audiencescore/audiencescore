@@ -24,7 +24,7 @@ Third, v0.2 is a strict generalization. v0.1 is the degenerate case: single atte
 
 1. **Verification ≠ certification.** A receipt proves standing to speak — that an event occurred. It never grades a human. AudienceScore attests events; the aggregate of attested voices grades the provider.
 2. **The review object is the transaction object.** You review what you participated in. Everything else is derived.
-3. **Raw is forever; scores are renderings.** Reviews are journal entries. Published scores are versioned, deterministic renderings over them. Scoring math can iterate indefinitely without touching the ledger. (Direct port of the SupaLedger invariant.)
+3. **Raw is forever; scores are renderings.** Reviews are journal entries. Published scores are versioned, deterministic renderings over them. Scoring math can iterate indefinitely without touching the ledger.
 4. **Issuers attest, holders review, the protocol renders.** No party performs another party's role — the review-layer rhyme of "AI proposes, humans commit."
 5. **Standing must cost something real.** On paid offerings, minimum attack cost equals real revenue to the target. On free offerings, standing costs verified time and effort — and every rendering discloses which kind of cost backs it.
 6. **Non-completion is signal, not noise.** Refunds, withdrawals, and dropouts carry the most informative negative signal in the system; the protocol preserves their standing rather than laundering them out.

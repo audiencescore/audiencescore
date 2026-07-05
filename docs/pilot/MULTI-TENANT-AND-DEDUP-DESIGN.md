@@ -106,7 +106,7 @@ On each `/v1/transactions`:
 2. **Atomically** attempt to mint via `recordTransaction` using the canonical key as `tx_id`
    (SQLite: PK conflict; production Postgres: `INSERT … ON CONFLICT DO NOTHING`).
    - **First source to land MINTS** — the one receipt, the one single-use review-right. This is
-     Dusty's "first to get the token," made race-safe by the atomic insert.
+     "first to get the token," made race-safe by the atomic insert.
 	   - **Every later source for the same key does NOT mint.** If immutable facts
 	     agree (issuer, offering, amount, currency), it appends a `corroborations`
 	     row and its co-signature. If they conflict, it appends a conflict row and

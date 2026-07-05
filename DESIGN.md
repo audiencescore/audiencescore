@@ -6,9 +6,10 @@ ledger may be reset and receipts re-issued after the audit.
 
 This document describes the first hosted AudienceScore pilot: one small Node
 HTTP service backed by the existing v0.2 SQLite reference store, deployed as a
-new Docker container on the existing DigitalOcean VPS behind the existing Caddy
-reverse proxy. It does not move storage to Postgres, does not modify Cary's
-application container, and does not commit secrets, keys, or customer data.
+new Docker container on the operator's VPS behind the existing Caddy
+reverse proxy. It does not move storage to Postgres, does not modify any other
+application container on the host, and does not commit secrets, keys, or
+customer data.
 
 ## Pilot Markers
 
@@ -98,7 +99,7 @@ An admin CLI creates pilot issuers and offerings:
 - Print the merchant-facing values: issuer id, issuer public key, offering ref,
   Stripe metadata keys, webhook URL, and receipt/review URLs.
 
-Field Elevate's first issuer setup is configuration-only. Dusty supplies the
+The first pilot issuer setup is configuration-only. The operator supplies the
 Stripe account choice and secrets at deploy time; adding or switching businesses
 is config plus admin CLI, not code.
 
@@ -129,15 +130,15 @@ ledger.
 
 The pilot deploys as a new container:
 
-- Host: existing DigitalOcean VPS.
+- Host: the operator's VPS.
 - Hostname: `api.audiencescore.org`.
-- Container: `audiencescore-pilot`, joined to the existing Docker network so
-  Caddy can reverse-proxy it.
+- Container: `audiencescore-pilot`, joined to the reverse proxy's Docker
+  network so Caddy can reverse-proxy it.
 - Caddy: add a new site block only for `api.audiencescore.org`; snapshot the
-  Caddyfile before editing. Do not modify the Cary bridge application container
-  or route.
-- DNS: GoDaddy-managed. If DNS cannot be edited from available credentials,
-  verify by IP plus Host header and report the exact `A` record needed.
+  Caddyfile before editing. Do not modify other containers or routes on the
+  host.
+- DNS: managed at the operator's registrar. Until the record exists, verify by
+  IP plus Host header.
 
 ## Verification
 

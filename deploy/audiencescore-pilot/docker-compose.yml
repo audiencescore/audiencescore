@@ -11,7 +11,7 @@ services:
     volumes:
       - ${AUDIENCESCORE_HOST_DATA_DIR:-/opt/audiencescore-pilot/data}:/data
     networks:
-      - cary_bridge
+      - proxy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
@@ -19,6 +19,6 @@ services:
       retries: 3
 
 networks:
-  cary_bridge:
+  proxy:
     external: true
-    name: cary-bridge_default
+    name: ${AUDIENCESCORE_PROXY_NETWORK:-proxy}
