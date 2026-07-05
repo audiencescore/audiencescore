@@ -1,7 +1,7 @@
 {
   "name": "audiencescore",
   "title": "AudienceScore — verified-review trust scores",
-  "description": "MCP server that returns a vendor's AudienceScore: the percent of verified thumbs-up across reviews each gated by cryptographic proof the reviewer really transacted with or participated in what they reviewed, with a Wilson 95% lower bound and sample size, as an Ed25519-signed manifest the caller can independently recompute from public data. A vendor with too few verified reviews returns a not-displayed manifest rather than a fabricated number.",
+  "description": "MCP server that returns an offering-version AudienceScore pilot manifest: an Ed25519-signed v0.2 rendering over receipt-gated reviews, plus a companion evidence tool for independent recomputation. An offering below the k-anonymity floor returns published:false rather than a fabricated number.",
   "version": "0.2.0-a",
   "protocol": "mcp",
   "protocolVersion": "2025-06-18",
@@ -9,9 +9,10 @@
   "url": "https://mcp.audiencescore.org/mcp",
   "source": {
     "repository": "https://github.com/audiencescore/audiencescore",
-    "entrypoint": "reference-impl/src/mcp-server.js",
-    "run": "node reference-impl/src/mcp-server.js",
-    "transport": "stdio"
+    "entrypoint": "reference-impl/src/mcp-http-server.js",
+    "run": "PORT=8080 node reference-impl/src/mcp-http-server.js",
+    "transport": "streamable-http",
+    "path": "/mcp"
   },
   "tools": [
     {
@@ -31,5 +32,5 @@
   ],
   "capabilities": ["VerifiedReviewTrustScore", "ProofOfParticipationReviewLookup"],
   "hosted": true,
-  "note": "Hosted pilot endpoint (Streamable HTTP) at https://mcp.audiencescore.org/mcp; also self-hostable from source over stdio. Pilot deployment, pre-cryptographic-audit. Verified scores populate as issuers begin signing receipts."
+  "note": "Hosted pilot endpoint (Streamable HTTP) at https://mcp.audiencescore.org/mcp; also self-hostable from source as a Streamable HTTP server. Pilot deployment, pre-cryptographic-audit. Verified scores populate as issuers begin signing receipts."
 }

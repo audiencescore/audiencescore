@@ -38,6 +38,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The repo MCP server-card copy now points to the current Streamable HTTP
+  pilot server instead of the retired v0.1 stdio server.
 - The hosted read API is now a thin fail-closed reverse proxy to the pilot
   server (set `AUDIENCESCORE_UPSTREAM_BASE_URL`), so every public host serves
   the same ledger signed by the same rendering key; with the origin down it
