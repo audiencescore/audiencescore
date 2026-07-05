@@ -86,6 +86,31 @@ async function main() {
       return;
     }
 
+    if (command === 'create-partner') {
+      const result = runtime.createPartner({
+        partnerId: requireArg(args, 'partnerId'),
+        name: requireArg(args, 'name'),
+        kind: args.kind ?? 'platform',
+        scopes: args.scopes ? String(args.scopes).split(',') : ['issue', 'corroborate'],
+      });
+      console.log(JSON.stringify({
+        ...result,
+        ingest_url: `${runtime.config.publicBaseUrl}/v1/transactions`,
+        auth_headers: { 'x-as-partner-id': result.partnerId, 'x-as-partner-secret': '<the secret above — store it now, it is not recoverable>' },
+      }, null, 2));
+      return;
+    }
+
+    if (command === 'link-issuer') {
+      const result = runtime.linkIssuer({
+        partnerId: requireArg(args, 'partnerId'),
+        issuerId: requireArg(args, 'issuerId'),
+        connectedAccountRef: args.connectedAccountRef ?? null,
+      });
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
     if (command === 'issue-manual') {
       const result = await runtime.issueReceipt({
         issuerId: requireArg(args, 'issuerId'),

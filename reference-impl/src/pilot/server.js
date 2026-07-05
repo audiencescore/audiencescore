@@ -149,6 +149,21 @@ function createServer(runtime = new PilotRuntime()) {
         const raw = await readBody(req);
         return json(res, 200, await runtime.handleStripeWebhook(raw, req.headers['stripe-signature']));
       }
+      // Platform / protocol / merchant direct ingestion. One rail for every
+      // partner; the dedup layer decides mint-vs-corroborate. Auth is a
+      // per-partner shared secret for the pilot; production uses signed
+      // requests or mTLS.
+      if (req.method === 'POST' && url.pathname === '/v1/transactions') {
+        let partner;
+        try {
+          partner = runtime.authenticatePartner(req.headers['x-as-partner-id'], req.headers['x-as-partner-secret']);
+        } catch {
+          return json(res, 401, { error: 'partner authentication failed', env: 'pilot' });
+        }
+        const body = JSON.parse(await readBody(req));
+        const result = await runtime.ingestTransaction(body, { partner });
+        return json(res, result.status === 'minted' ? 201 : 200, result);
+      }
       if (req.method === 'POST' && url.pathname === '/mcp') {
         const message = JSON.parse(await readBody(req));
         const { id, method, params } = message;

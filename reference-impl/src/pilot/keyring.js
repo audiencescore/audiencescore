@@ -30,25 +30,36 @@ function loadOrCreatePayloadKey(keysDir, name) {
   return { privateKey, publicKey: crypto.createPublicKey(privateKey) };
 }
 
-function createIssuerKey(keysDir, issuerId) {
-  ensureDir(path.join(keysDir, 'issuers'));
-  const file = path.join(keysDir, 'issuers', `${issuerId}.private.pem`);
-  if (fs.existsSync(file)) throw new Error(`issuer key already exists: ${issuerId}`);
+// Keyed identities (issuers, partners) live under keysDir/<subdir>/. The
+// backend is PEM-on-disk for the pilot; a production deployment swaps this
+// module for a KMS/secure-enclave signer (Ed25519 → enclave path) behind the
+// same create/load interface, with no change to callers.
+function createSubjectKey(keysDir, subdir, id) {
+  ensureDir(path.join(keysDir, subdir));
+  const file = path.join(keysDir, subdir, `${id}.private.pem`);
+  if (fs.existsSync(file)) throw new Error(`${subdir} key already exists: ${id}`);
   const pair = generateIssuerKeyPair();
   writePrivateKey(file, pair.privateKey);
   return { privateKey: pair.privateKey, publicHex: pair.publicHex, keyPath: file };
 }
 
-function loadIssuerKey(keysDir, issuerId) {
-  const file = path.join(keysDir, 'issuers', `${issuerId}.private.pem`);
-  if (!fs.existsSync(file)) throw new Error(`missing issuer key for ${issuerId}: ${file}`);
+function loadSubjectKey(keysDir, subdir, id) {
+  const file = path.join(keysDir, subdir, `${id}.private.pem`);
+  if (!fs.existsSync(file)) throw new Error(`missing ${subdir} key for ${id}: ${file}`);
   const privateKey = loadPrivateKey(file);
   return { privateKey, publicHex: rawPublicHex(crypto.createPublicKey(privateKey)), keyPath: file };
 }
+
+const createIssuerKey = (keysDir, issuerId) => createSubjectKey(keysDir, 'issuers', issuerId);
+const loadIssuerKey = (keysDir, issuerId) => loadSubjectKey(keysDir, 'issuers', issuerId);
+const createPartnerKey = (keysDir, partnerId) => createSubjectKey(keysDir, 'partners', partnerId);
+const loadPartnerKey = (keysDir, partnerId) => loadSubjectKey(keysDir, 'partners', partnerId);
 
 module.exports = {
   ensureDir,
   loadOrCreatePayloadKey,
   createIssuerKey,
   loadIssuerKey,
+  createPartnerKey,
+  loadPartnerKey,
 };

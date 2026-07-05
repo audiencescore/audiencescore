@@ -7,9 +7,11 @@ const { Store } = require('../v02/store');
 const { uuidv7, verifyReceipt } = require('../v02/receipts');
 const { canonicalReceiptString } = require('../v02/canonical');
 const { canonicalize, signPayload, publicKeyToString, verifyPayload } = require('../crypto');
+const { coattestReceipt } = require('../v02/signing');
 const { renderOffering } = require('../v02/rendering');
 const { generateHolderRoot, generateSalt, deriveHolderKeyPair, holderBinding } = require('../v02/holder');
-const { loadOrCreatePayloadKey, createIssuerKey, loadIssuerKey, ensureDir } = require('./keyring');
+const { loadOrCreatePayloadKey, createIssuerKey, loadIssuerKey, createPartnerKey, loadPartnerKey, ensureDir } = require('./keyring');
+const { canonicalTxnKey } = require('./canonical-txn');
 const { deliverReceiptEmail } = require('./email');
 const { verifyStripeWebhook, eventToTransaction } = require('./stripe');
 
@@ -62,6 +64,58 @@ CREATE TABLE IF NOT EXISTS pilot_webhook_events (
   received_at TEXT NOT NULL,
   PRIMARY KEY (provider, event_id)
 );
+CREATE TABLE IF NOT EXISTS pilot_partners (
+  partner_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  public_hex TEXT NOT NULL UNIQUE,
+  auth_hash TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pilot_partner_issuer_links (
+  partner_id TEXT NOT NULL,
+  issuer_id TEXT NOT NULL,
+  connected_account_ref TEXT,
+  linked_at TEXT NOT NULL,
+  PRIMARY KEY (partner_id, issuer_id)
+);
+CREATE TABLE IF NOT EXISTS pilot_txn_registry (
+  tx_canonical_key TEXT PRIMARY KEY,
+  receipt_id TEXT NOT NULL,
+  issuer_id TEXT NOT NULL,
+  offering TEXT NOT NULL,
+  minted_by TEXT NOT NULL,
+  basis TEXT NOT NULL,
+  first_seen_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pilot_corroborations (
+  corroboration_id TEXT PRIMARY KEY,
+  tx_canonical_key TEXT NOT NULL,
+  receipt_id TEXT NOT NULL,
+  source_partner_id TEXT NOT NULL,
+  source_txn_ref TEXT,
+  amount_cents INTEGER,
+  kind TEXT NOT NULL,
+  coattest TEXT,
+  logged_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pilot_txn_deliveries (
+  tx_canonical_key TEXT PRIMARY KEY,
+  mode TEXT NOT NULL,
+  ref TEXT,
+  delivered_at TEXT NOT NULL
+);
+-- Evidence tables are append-only: the dedup anchor and its corroborations
+-- can never be rewritten (mirrors the ledger's I-5 immutability).
+CREATE TRIGGER IF NOT EXISTS pilot_txn_registry_no_update BEFORE UPDATE ON pilot_txn_registry
+BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_txn_registry'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_txn_registry_no_delete BEFORE DELETE ON pilot_txn_registry
+BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_txn_registry'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_update BEFORE UPDATE ON pilot_corroborations
+BEGIN SELECT RAISE(ABORT, 'append-only: UPDATE forbidden on pilot_corroborations'); END;
+CREATE TRIGGER IF NOT EXISTS pilot_corroborations_no_delete BEFORE DELETE ON pilot_corroborations
+BEGIN SELECT RAISE(ABORT, 'append-only: DELETE forbidden on pilot_corroborations'); END;
 `;
 
 function defaultConfig(overrides = {}) {
@@ -212,47 +266,185 @@ class PilotRuntime {
     return signed;
   }
 
-  async issueReceipt({ issuerId, offering, role = 'participant', amountCents, txId, externalRef = null, customerEmail = null, occurredAt = null }) {
+  // ---- partners (platforms / protocols / marketplaces / merchants) ---------
+
+  createPartner({ partnerId, name, kind = 'platform', scopes = ['issue', 'corroborate'] }) {
+    if (!partnerId || !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(partnerId)) {
+      throw new Error('partner_id must be lowercase letters, numbers, underscore, or hyphen');
+    }
+    const key = createPartnerKey(this.config.keysDir, partnerId);
+    const secret = randomToken();
+    this.store.db.prepare(
+      'INSERT INTO pilot_partners (partner_id, name, kind, public_hex, auth_hash, scopes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(partnerId, name, kind, key.publicHex, sha256(secret), JSON.stringify(scopes), new Date().toISOString());
+    this.signPilotEvent('partner_registered', { partner_id: partnerId, kind, public_hex: key.publicHex });
+    return { partnerId, name, kind, publicHex: key.publicHex, secret, scopes };
+  }
+
+  getPartner(partnerId) {
+    const row = this.store.db.prepare('SELECT * FROM pilot_partners WHERE partner_id = ?').get(partnerId);
+    if (!row) throw new Error(`unknown partner: ${partnerId}`);
+    return row;
+  }
+
+  // A platform links each of its connected merchants to one of our issuers.
+  // One platform → many issuers: the "connect once, cover all merchants" map.
+  linkIssuer({ partnerId, issuerId, connectedAccountRef = null }) {
+    this.getPartner(partnerId);
+    this.getIssuer(issuerId);
+    this.store.db.prepare(
+      'INSERT OR IGNORE INTO pilot_partner_issuer_links (partner_id, issuer_id, connected_account_ref, linked_at) VALUES (?, ?, ?, ?)',
+    ).run(partnerId, issuerId, connectedAccountRef, new Date().toISOString());
+    this.signPilotEvent('partner_issuer_linked', { partner_id: partnerId, issuer_id: issuerId, connected_account_ref: connectedAccountRef });
+    return { partnerId, issuerId, connectedAccountRef };
+  }
+
+  authenticatePartner(partnerId, secret) {
+    const row = this.getPartner(partnerId);
+    const a = Buffer.from(sha256(String(secret ?? '')), 'hex');
+    const b = Buffer.from(row.auth_hash, 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) throw new Error('partner authentication failed');
+    return row;
+  }
+
+  resolveIssuerId(partner, event) {
+    if (event.issuerId) return event.issuerId;
+    if (event.connectedAccountRef) {
+      const link = this.store.db.prepare(
+        'SELECT issuer_id FROM pilot_partner_issuer_links WHERE partner_id = ? AND connected_account_ref = ?',
+      ).get(partner.partner_id, event.connectedAccountRef);
+      if (link) return link.issuer_id;
+    }
+    throw new Error('cannot resolve issuer: provide issuerId or a linked connectedAccountRef');
+  }
+
+  assertPartnerMayIssue(partner, issuerId) {
+    if (!partner) return; // trusted internal / manual path
+    const scopes = JSON.parse(partner.scopes);
+    if (scopes.includes('issue_any')) return;
+    const link = this.store.db.prepare(
+      'SELECT 1 FROM pilot_partner_issuer_links WHERE partner_id = ? AND issuer_id = ?',
+    ).get(partner.partner_id, issuerId);
+    if (!link) throw new Error(`partner ${partner.partner_id} is not authorized to issue for ${issuerId}`);
+  }
+
+  // ---- ingestion spine: one path for every source --------------------------
+
+  mintReceipt({ issuerId, offering, role, amountCents, txId, occurredAt }) {
     const issuerMeta = this.getIssuer(issuerId);
     const offeringMeta = this.getOffering(offering);
     if (offeringMeta.issuer_id !== issuerId) throw new Error(`${offering} is not registered to ${issuerId}`);
     const issuerKey = loadIssuerKey(this.config.keysDir, issuerId);
     const holder = randomHolderBinding(issuerKey.publicHex);
     const { receipt } = this.store.recordTransaction({
-      issuer: issuerKey,
-      holder,
-      role,
-      offering,
-      txId,
-      amountCents,
-      occurredAt: occurredAt ?? new Date().toISOString(),
-      env: PILOT_ENV,
+      issuer: issuerKey, holder, role, offering, txId, amountCents,
+      occurredAt: occurredAt ?? new Date().toISOString(), env: PILOT_ENV,
     });
+    return { receipt, issuerMeta };
+  }
+
+  createClaim(receiptId) {
     const token = randomToken();
-    const tokenHash = sha256(token);
-    const claimUrl = `${this.config.publicBaseUrl}/claim/${token}`;
     this.store.db.prepare(
       'INSERT INTO pilot_delivery_claims (token_hash, receipt_id, created_at) VALUES (?, ?, ?)',
-    ).run(tokenHash, receipt.receipt_id, new Date().toISOString());
+    ).run(sha256(token), receiptId, new Date().toISOString());
+    return { token, claimUrl: `${this.config.publicBaseUrl}/claim/${token}` };
+  }
 
-    let delivery = { mode: 'none', file: null };
-    if (customerEmail) {
-      delivery = await deliverReceiptEmail(
-        { ...this.config, emailFrom: issuerMeta.email_from || this.config.emailFrom },
-        { to: customerEmail, receipt, claimUrl },
-      );
-    }
+  // Deliver the review link at most once per canonical transaction, no matter
+  // how many sources report it or which one carries the customer's contact.
+  async deliverOnce(canonicalKey, { issuerMeta, issuerId, offering, receipt, claimUrl, customerEmail, externalRef = null }) {
+    if (!customerEmail) return { mode: 'none', file: null };
+    const reserved = this.store.db.prepare(
+      'INSERT OR IGNORE INTO pilot_txn_deliveries (tx_canonical_key, mode, ref, delivered_at) VALUES (?, ?, ?, ?)',
+    ).run(canonicalKey, 'reserved', receipt.receipt_id, new Date().toISOString());
+    if (reserved.changes === 0) return { mode: 'already_delivered', file: null };
+    const delivery = await deliverReceiptEmail(
+      { ...this.config, emailFrom: issuerMeta.email_from || this.config.emailFrom },
+      { to: customerEmail, receipt, claimUrl },
+    );
     this.store.db.prepare(
       'INSERT INTO pilot_receipt_deliveries (tx_id, receipt_id, issuer_id, offering, delivery_mode, delivery_ref, external_ref, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run(txId, receipt.receipt_id, issuerId, offering, delivery.mode, delivery.file ?? null, externalRef, new Date().toISOString());
-    const event = this.signPilotEvent('receipt_issued', {
-      issuer_id: issuerId,
-      offering,
-      receipt_id: receipt.receipt_id,
-      tx_id: txId,
-      delivery_mode: delivery.mode,
+    ).run(canonicalKey, receipt.receipt_id, issuerId, offering, delivery.mode, delivery.file ?? null, externalRef, new Date().toISOString());
+    return delivery;
+  }
+
+  /**
+   * The one path every transaction takes — manual, Stripe, or a platform
+   * POSTing to /v1/transactions. Computes the canonical key, then MINTS (first
+   * source wins the single review-right) or CORROBORATES (later sources
+   * strengthen the same receipt; never a second one).
+   */
+  async ingestTransaction(event, { partner = null } = {}) {
+    const issuerId = partner ? this.resolveIssuerId(partner, event) : event.issuerId;
+    this.assertPartnerMayIssue(partner, issuerId);
+    const offering = event.offering;
+    this.getOffering(offering);
+    const role = event.role || 'participant';
+    const amountCents = Number(event.amountCents);
+    const occurredAt = event.occurredAt || new Date().toISOString();
+    const customerEmail = event.customerEmail || null;
+    const { key: canonicalKey, basis } = canonicalTxnKey({
+      issuerId, rail: event.rail, processorTxnId: event.processorTxnId,
+      amountCents, currency: event.currency, occurredAt, customerContact: customerEmail,
     });
-    return { receipt, claimUrl, delivery, event };
+    const sourceId = partner ? partner.partner_id : 'manual';
+    const existing = this.store.db.prepare(
+      'SELECT * FROM pilot_txn_registry WHERE tx_canonical_key = ?',
+    ).get(canonicalKey);
+
+    if (event.kind === 'reversal') {
+      if (!existing) return { status: 'reversal_no_match', canonicalKey };
+      return this.corroborate({ existing, canonicalKey, partner, sourceId, event, kind: 'reversed', issuerId, offering, customerEmail: null });
+    }
+    if (existing) {
+      return this.corroborate({ existing, canonicalKey, partner, sourceId, event, kind: 'corroborates', issuerId, offering, customerEmail });
+    }
+
+    const { receipt, issuerMeta } = this.mintReceipt({ issuerId, offering, role, amountCents, txId: canonicalKey, occurredAt });
+    this.store.db.prepare(
+      'INSERT INTO pilot_txn_registry (tx_canonical_key, receipt_id, issuer_id, offering, minted_by, basis, first_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(canonicalKey, receipt.receipt_id, issuerId, offering, sourceId, basis, new Date().toISOString());
+    const { claimUrl } = this.createClaim(receipt.receipt_id);
+    const delivery = await this.deliverOnce(canonicalKey, { issuerMeta, issuerId, offering, receipt, claimUrl, customerEmail, externalRef: event.processorTxnId || null });
+    const evt = this.signPilotEvent('receipt_issued', {
+      issuer_id: issuerId, offering, receipt_id: receipt.receipt_id,
+      tx_canonical_key: canonicalKey, minted_by: sourceId, basis, delivery_mode: delivery.mode,
+    });
+    return { status: 'minted', receipt, claimUrl, canonicalKey, basis, delivery, event: evt };
+  }
+
+  async corroborate({ existing, canonicalKey, partner, sourceId, event, kind, issuerId, offering, customerEmail }) {
+    const receipt = this.getStoredReceipt(existing.receipt_id);
+    // A corroboration is a partner signature over the SAME canonical receipt
+    // bytes the issuer signed — verifiable later against the partner's key.
+    const coattest = partner ? coattestReceipt(receipt, loadPartnerKey(this.config.keysDir, partner.partner_id).privateKey) : null;
+    this.store.db.prepare(
+      'INSERT INTO pilot_corroborations (corroboration_id, tx_canonical_key, receipt_id, source_partner_id, source_txn_ref, amount_cents, kind, coattest, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(uuidv7(), canonicalKey, receipt.receipt_id, sourceId, event.processorTxnId || null,
+      event.amountCents != null ? Number(event.amountCents) : null, kind, coattest, new Date().toISOString());
+    let delivery = { mode: 'none', file: null };
+    if (kind === 'corroborates' && customerEmail) {
+      const issuerMeta = this.getIssuer(issuerId);
+      const { claimUrl } = this.createClaim(receipt.receipt_id);
+      delivery = await this.deliverOnce(canonicalKey, { issuerMeta, issuerId, offering, receipt, claimUrl, customerEmail, externalRef: event.processorTxnId || null });
+    }
+    const evt = this.signPilotEvent('transaction_corroborated', {
+      tx_canonical_key: canonicalKey, receipt_id: receipt.receipt_id, source: sourceId, kind,
+    });
+    return { status: kind === 'reversed' ? 'reversed' : 'corroborated', receipt, canonicalKey, delivery, event: evt };
+  }
+
+  // Manual issuance is ingest through a trusted internal source: rail "manual"
+  // plus the external reference forms a stable canonical key, so a re-submitted
+  // invoice de-duplicates like any other source.
+  async issueReceipt({ issuerId, offering, role = 'participant', amountCents, txId = null, externalRef = null, customerEmail = null, occurredAt = null }) {
+    const res = await this.ingestTransaction({
+      issuerId, offering, role, amountCents,
+      rail: 'manual', processorTxnId: externalRef || txId,
+      currency: 'usd', occurredAt, customerEmail, kind: 'transaction',
+    }, { partner: null });
+    return { receipt: res.receipt, claimUrl: res.claimUrl, delivery: res.delivery, event: res.event, status: res.status, canonicalKey: res.canonicalKey };
   }
 
   async handleStripeWebhook(rawBody, signatureHeader) {
@@ -268,9 +460,13 @@ class PilotRuntime {
       'SELECT * FROM pilot_webhook_events WHERE provider = ? AND event_id = ?',
     ).get('stripe', event.id);
     if (existing) return { status: 'duplicate', event_id: event.id };
-    const issued = await this.issueReceipt(tx);
-    this.recordWebhook(event, tx.issuerId, 'issued');
-    return { status: 'issued', event_id: event.id, receipt: issued.receipt, claim_url: issued.claimUrl };
+    const res = await this.ingestTransaction({
+      issuerId: tx.issuerId, offering: tx.offering, role: tx.role, amountCents: tx.amountCents,
+      rail: 'stripe', processorTxnId: tx.externalRef, currency: 'usd',
+      occurredAt: tx.occurredAt, customerEmail: tx.customerEmail, kind: 'transaction',
+    }, { partner: null });
+    this.recordWebhook(event, tx.issuerId, res.status);
+    return { status: res.status === 'minted' ? 'issued' : res.status, event_id: event.id, receipt: res.receipt, claim_url: res.claimUrl };
   }
 
   recordWebhook(event, issuerId, status) {

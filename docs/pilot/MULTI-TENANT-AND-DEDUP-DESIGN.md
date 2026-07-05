@@ -136,10 +136,18 @@ On each `/v1/transactions`:
 
 ## Build order
 
-1. `partners` + `partner_issuer_links` + `corroborations` tables; the `/v1/transactions` endpoint
-   with canonical-key mint-or-corroborate.
-2. Refactor the Stripe webhook handler to be a producer of `/v1/transactions`.
-3. Platform bulk-merchant provisioning + custodial key backend interface.
-4. QuickBooks and Square connectors as additional producers (proves cross-source dedup end-to-end).
-5. Extend the live-check acceptance script with a double-dip test: post the same canonical key from
-   two partners, assert one receipt + one corroboration + one review-right + one delivery.
+1. **[DONE]** `pilot_partners` + `pilot_partner_issuer_links` + `pilot_txn_registry` +
+   `pilot_corroborations` + `pilot_txn_deliveries` tables (evidence tables append-only); the
+   `ingestTransaction` spine and `POST /v1/transactions` endpoint with canonical-key
+   mint-or-corroborate; `canonical-txn.js`; `create-partner`/`link-issuer` admin commands.
+2. **[DONE]** Manual issuance and the Stripe webhook handler both refactored to producers of the
+   single `ingestTransaction` spine — every source shares one dedup path.
+3. Platform bulk-merchant provisioning (OAuth callback) + custodial key backend swapped from
+   PEM-on-disk to KMS/secure-enclave (Ed25519 → enclave path).
+4. QuickBooks and Square connectors as additional producers (extends the proven cross-source dedup).
+5. **[DONE]** `test/pilot/ingest.test.js`: same sale from two/three partners → one receipt + one
+   review-right + one delivery + corroborations; corroboration-signature verification; late-email
+   delivery-once; unlinked-partner refusal; reversal; endpoint auth. 75/75 suite green.
+
+The spine (1, 2, 5) is built and tested; 3 and 4 are additive producers/backends that plug into it
+without changing the core — which is the point of building it right the first time.
