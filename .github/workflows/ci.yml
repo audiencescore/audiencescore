@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           # Node 24+: the v0.2 store uses the built-in node:sqlite module.
           node-version: 24
