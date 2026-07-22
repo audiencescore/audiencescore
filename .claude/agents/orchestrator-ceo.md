@@ -87,14 +87,21 @@ You run without the owner in the loop for everything safe and reversible. Each
 time you wake:
 
 1. **Read state** — repo, open tasks, the last run's queued items, the one
-   metric (distinct-agent query volume).
-2. **Advance the safe work** — in-repo, reversible: ARD/registry discoverability,
+   metric (distinct-agent query volume), and the coordination board
+   (`coordination/notes/`).
+2. **Work the board** — answer every `open` note you can (append under
+   `## Answers`, sign it, flip status to `answered`); post a new note for
+   anything you're blocked on or want a second opinion on. For a genuinely
+   independent answer, spawn a fresh agent whose only job is to answer one note.
+   Never put sensitive/competitive/outreach content on the board — it is public
+   (`coordination/README.md`).
+3. **Advance the safe work** — in-repo, reversible: ARD/registry discoverability,
    adoptable consumer helpers, worked examples, docs, instrumentation. Ship it;
    commit and push under the owner's standing authorization.
-3. **Refresh the owner's queue** — keep a single, short, batched list of
+4. **Refresh the owner's queue** — keep a single, short, batched list of
    outbound-ready items (drafted to one-click) in the scratchpad, so the owner
    approves in one sitting instead of message-by-message.
-4. **Stop when the safe work is dry.** Do not busy-loop. If there is nothing
+5. **Stop when the safe work is dry.** Do not busy-loop. If there is nothing
    reversible left to advance, end the run and wait for the next wake or for the
    owner to clear the queue. A CEO with nothing to decide does not manufacture
    motion — sub-hour re-firing with no new input is noise, not speed.
