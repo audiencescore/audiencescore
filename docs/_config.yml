@@ -1,0 +1,19 @@
+# GitHub Pages (Jekyll) configuration for the AudienceScore docs site.
+#
+# WHY THIS FILE EXISTS: GitHub Pages' default Jekyll build excludes any file or
+# folder whose name starts with a dot. Without this include, `docs/.well-known/`
+# is silently dropped from the published site, so the ARD capability manifest at
+#   https://audiencescore.org/.well-known/ai-catalog.json
+# and the MCP server card at
+#   https://audiencescore.org/.well-known/mcp/server-card.json
+# never serve, and ARD-aware registries crawling the domain see nothing.
+# (Documented in docs/ard.md, "Make Pages actually publish the .well-known
+# dot-folder".)
+#
+# This is the recommended fix: it opts the dot-folder back into the build while
+# leaving Jekyll ON, so the existing Markdown docs pages keep rendering to HTML
+# as before. (The alternative, an empty docs/.nojekyll, would disable Jekyll
+# entirely and serve the .md pages raw — that regresses the docs site, so it is
+# deliberately NOT used here.)
+include:
+  - ".well-known"

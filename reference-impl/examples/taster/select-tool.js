@@ -38,11 +38,11 @@ const CANDIDATES = [
 const FIXTURES = {
   'field-elevate-demo@v1': {
     manifest: { published: true, offering: 'field-elevate-demo@v1', env: 'pilot',
-      views: { all_verified: { overall: 4.6, n: 22 }, completer: { overall: 4.7, n: 14 } } },
+      views: { all_verified: { score: 4.6, sample_size: 22 }, completers: { score: 4.7, sample_size: 14 } } },
   },
   'demo-workflow@v1': {
     manifest: { published: true, offering: 'demo-workflow@v1', env: 'pilot',
-      views: { all_verified: { overall: 3.1, n: 9 }, completer: { overall: 3.0, n: 5 } } },
+      views: { all_verified: { score: 3.1, sample_size: 9 }, completers: { score: 3.0, sample_size: 5 } } },
   },
 };
 
@@ -74,8 +74,9 @@ async function scoreFor(offering) {
 
 function overall(m) {
   // The number the agent actually uses to choose; unpublished => not selectable.
+  // Rendering v1 emits the view mean as `score` (see src/v02/rendering.js).
   if (!m || m.published === false) return null;
-  return m.views?.all_verified?.overall ?? null;
+  return m.views?.all_verified?.score ?? null;
 }
 
 async function main() {
